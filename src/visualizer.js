@@ -1,113 +1,97 @@
 /**
- * Four-row ASCII signal. Uses actual frequency bins when the current MP3
- * allows cross-origin analysis; otherwise uses a continuous mathematical
- * motion pattern while audio is playing. Decorative glyphs never claim to
- * be measured sound when the input isn't available.
+ * One horizontal path of animated ASCII glyphs.
+ * Uses actual FFT energy when the stream can be analysed, and an animated
+ * mathematical contour otherwise. Never draws bar graphs or extra rows.
  */
 export function createVisualizer(audio, element) {
-  const rows = [...element.querySelectorAll('[data-wave]')];
-  const WIDTH = 34;
-  const HEIGHT = rows.length;
-  const SYMBOLS = ['_', '.', '·', '-', '~', '^', '*', '°', '\'', '"', '`'];
-  const EMPTY = '\u00a0';
+  const WIDTH = 36;
+  const CHARS = ['_', '.', '\'', '\"', '^', '*', '~', '.', '-', '°'];
+  const shades = ['fuschia', 'orange', 'yellow', 'green'];
   const smooth = new Float32Array(WIDTH);
+  const letters = [];
+  const fragment = document.createDocumentFragment();
+  for (let i = 0; i < WIDTH; i++) {
+    const span = document.createElement('span');
+    span.className = `wave-glyph ${shades[Math.min(3, Math.floor(i / (WIDTH / 4)))]}`;
+    span.textContent = CHARS[i % CHARS.length];
+    span.style.left = `${(i / WIDTH) * 98}%`;
+    fragment.append(span);
+    letters.push(span);
+  }
+  element.replaceChildren(fragment);
   let episode = 70;
   let animationId = 0;
   let lastPaint = 0;
-  let ctx = null;
-  let analyser = null;
-  let bins = null;
-  let origin = null;
+  let ctx = null, analyser = null, bins = null;
 
-  // Analyser requires CORS permission from remote audio hosts.
-  audio.crossOrigin = 'anonymous';
-
+  // Do not force crossOrigin on the <audio> element: some external MP3 hosts
+  // don't send Access-Control-Allow-Origin and would then refuse playback.
+  // In that case the contour still animates, but isn't labelled as FFT data.
   async function activate() {
-    if (ctx) {
-      try { await ctx.resume(); } catch {}
-      return Boolean(analyser);
-    }
-    if (!audio.currentSrc && !audio.src) return false;
-    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContextCtor) return false;
+    if (ctx) { try { await ctx.resume(); } catch {} return Boolean(analyser); }
+    if (!audio.src && !audio.currentSrc) return false;
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return false;
+    // Cross-origin streaming without CORS cannot be analysed safely. Avoid
+    // routing such audio through WebAudio, which would mute a tainted source.
+    const url = new URL(audio.currentSrc || audio.src, location.href);
+    if (url.origin !== location.origin && audio.crossOrigin !== 'anonymous') return false;
     try {
-      ctx = new AudioContextCtor();
-      origin = ctx.createMediaElementSource(audio);
+      ctx = new Ctor();
+      const input = ctx.createMediaElementSource(audio);
       analyser = ctx.createAnalyser();
       analyser.fftSize = 2048;
-      analyser.smoothingTimeConstant = 0.73;
-      origin.connect(analyser);
+      analyser.smoothingTimeConstant = .75;
+      input.connect(analyser);
       analyser.connect(ctx.destination);
       bins = new Uint8Array(analyser.frequencyBinCount);
       await ctx.resume();
       return true;
-    } catch {
-      return false;
-    }
+    } catch { return false; }
   }
 
   function draw(now) {
     const playing = !audio.paused && !audio.ended;
-    const time = playing ? now / 1000 : episode * 0.053;
+    const t = playing ? now / 1000 : episode * .073;
     let measured = false;
     if (playing && analyser && bins) {
-      analyser.getByteFrequencyData(bins);
-      measured = bins.some(v => v > 3);
+      try {
+        analyser.getByteFrequencyData(bins);
+        measured = bins.some(v => v > 3);
+      } catch {}
     }
-    element.dataset.signal = playing ? (measured ? 'frequency' : 'motion') : 'idle';
+    element.dataset.signal = !playing ? 'idle' : (measured ? 'frequency' : 'motion');
     element.classList.toggle('is-playing', playing);
-    const field = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(EMPTY));
-    const pulse = 0.25 * Math.sin(time * 2.1 + episode * 0.7);
-
-    for (let x = 0; x < WIDTH; x++) {
-      const t = x / (WIDTH - 1);
-      const drift = Math.sin((t * 2.85 - time * 0.62) * Math.PI + episode * .44);
-      const fine = .38 * Math.sin(t * 19.5 + time * 1.4);
-      const waveShape = .51 + .38 * drift + .24 * fine + pulse * .28;
-      let strength;
+    for (let i = 0; i < WIDTH; i++) {
+      const x = i / (WIDTH - 1);
+      let energy = .5 + .31 * Math.sin(x * 9.4 - t * 2.35 + episode * .2)
+                     + .17 * Math.sin(x * 27.5 + t * 1.6);
       if (measured) {
-        const bin = Math.min(bins.length - 1, Math.round(Math.pow(1 + t * 22, 1.40) * 2));
-        const value = Math.min(1, Math.max(0, (bins[bin] - 24) / 200));
-        smooth[x] += (value - smooth[x]) * 0.24;
-        strength = .72 * waveShape + .38 * smooth[x];
-      } else {
-        strength = waveShape;
+        const bin = Math.min(bins.length - 1, Math.floor(2 + (x * x) * 175));
+        const value = bins[bin] / 255;
+        smooth[i] += (value - smooth[i]) * .2;
+        energy = .52 * energy + .48 * smooth[i];
       }
-      // Curved / stepped trail, never a horizontal progress line.
-      const height = Math.max(0, Math.min(HEIGHT - 1, Math.round((1 - Math.max(0, Math.min(1, strength))) * (HEIGHT - 1))));
-      const index = Math.abs(Math.round((Math.sin(x * .71 - time * 3.1) * 6 + x * .31 + episode) * 5));
-      field[height][x] = SYMBOLS[index % SYMBOLS.length];
-
-      // Multiple rows of sparse glyphs make this look like ASCII particles,
-      // not a flat equalizer trace or a conventional bar chart.
-      const shimmer = (Math.sin(x * 1.57 + time * 2.8 + episode) + 1) / 2;
-      if (playing && shimmer > .68) {
-        const neighbor = Math.max(0, Math.min(HEIGHT - 1, height + (x % 2 ? -1 : 1)));
-        if (neighbor !== height) field[neighbor][x] = SYMBOLS[(index + 4) % SYMBOLS.length];
-      }
-      if (playing && measured && smooth[x] > .7 && height + 1 < HEIGHT) {
-        field[height + 1][x] = '.';
-      }
+      energy = Math.max(.06, Math.min(.95, energy));
+      const y = 4 + (1 - energy) * 32; // a single curved trail, no extra rows
+      const charIndex = Math.abs(Math.round(i * .7 + t * 4 + episode * .31 + energy * 8));
+      const span = letters[i];
+      span.textContent = CHARS[charIndex % CHARS.length];
+      span.style.transform = `translateY(${y.toFixed(1)}px)`;
+      span.style.opacity = String(.50 + energy * .5);
     }
-
-    rows.forEach((row, idx) => { row.textContent = field[idx].join(''); });
   }
-
   function frame(now) {
     animationId = requestAnimationFrame(frame);
-    if (now - lastPaint < 42) return;
+    if (now - lastPaint < 45) return;
     lastPaint = now;
     draw(now);
   }
-  function refresh() { draw(performance.now()); }
-  function setEpisode(number) { episode = number; smooth.fill(0); refresh(); }
-  for (const event of ['play', 'playing', 'pause', 'ended', 'seeked', 'waiting']) {
+  function refresh() {draw(performance.now());}
+  function setEpisode(num) {episode = num; smooth.fill(0); refresh();}
+  for (const event of ['play', 'playing', 'pause', 'ended', 'seeked', 'waiting'])
     audio.addEventListener(event, refresh);
-  }
   animationId = requestAnimationFrame(frame);
   draw(0);
-  return {
-    activate, refresh, setEpisode,
-    dispose() { cancelAnimationFrame(animationId); if (ctx) ctx.close(); }
-  };
+  return {activate, refresh, setEpisode, dispose(){cancelAnimationFrame(animationId);if(ctx)ctx.close();}};
 }

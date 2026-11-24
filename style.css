@@ -776,3 +776,113 @@ body.audio-playing #tracklist .bouncing-glyphs {opacity:.82;}
   #content > .episode-transition.active{display:none !important;}
   .bouncing-glyph{animation:none;opacity:.15;}
 }
+
+/* v7: precisely one wandering ASCII signal, never multiple rows/bars or a rule. */
+.terminal-display {
+  min-height: 5em;
+  max-width: 100%;
+  padding-top: 0;
+}
+.terminal-wave {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 3.1em;
+  overflow: hidden;
+  white-space: nowrap;
+  line-height: 1;
+  font-size: .91em;
+  text-shadow: none;
+}
+.terminal-wave .wave-glyph {
+  position: absolute;
+  display: block;
+  width: 1ch;
+  height: 1.1em;
+  text-align: center;
+  line-height: 1;
+  will-change: transform;
+  font-variant-ligatures: none;
+  pointer-events: none;
+  user-select: none;
+}
+.terminal-display .now-label {margin-top: .15em;}
+.terminal-display::after {content: none !important;}
+@media(min-width:1024px) {
+  .terminal-display {margin-top:1.25em; min-height:5em;}
+}
+@media(max-width:767px) {
+  .terminal-display {min-height:5em; margin-top:.35em;}
+}
+
+/* The only bounce is this tiny mark to the LEFT of the playing archive entry. */
+.archive a.is-loaded::before {content:none !important;animation:none !important;}
+.archive .playing-glyph {
+  display:none;
+  position:absolute;
+  right:calc(100% + .65ch);
+  top:0;
+  color:var(--c-green);
+  font-style:normal;
+  font-weight:400;
+  width:1ch;
+  text-align:center;
+  z-index:4;
+  pointer-events:none;
+  transform-origin:center;
+}
+body.audio-playing .archive a.is-loaded .playing-glyph {
+  display:block;
+  animation:archive-bounce .46s ease-in-out infinite alternate;
+}
+@keyframes archive-bounce {
+  0% {transform:translate(-.22ch,-.28em) rotate(-10deg);opacity:.45;}
+  100% {transform:translate(.17ch,.31em) rotate(8deg);opacity:1;}
+}
+
+/* The tracklist always stays free of bouncing symbols. */
+#tracklist .bouncing-glyphs, #tracklist .bouncing-glyph {display:none !important;}
+
+/* During switching the middle column becomes EMPTY underneath the ASCII rain.
+   This opaque overlay covers the title, controls, tracks and any long scroll. */
+#content.episode-switching > .full {visibility:hidden !important;}
+#content > .episode-transition,
+#content > .episode-transition.active {
+  position:absolute;
+  inset:0;
+  top:0;
+  width:100%;
+  height:100%;
+  min-height:100%;
+  z-index:30;
+  padding:0;
+  background:var(--c-black) !important;
+  overflow:hidden;
+  pointer-events:none;
+  animation:none !important;
+  transition:none !important;
+}
+#content > .episode-transition {display:none !important;visibility:hidden;opacity:0;}
+#content > .episode-transition.active {display:block !important;visibility:visible;opacity:1 !important;}
+#content .ascii-raindrop {
+  display:block;
+  position:absolute;
+  white-space:pre;
+  line-height:1.4;
+  font-size:.95em;
+  opacity:0;
+  text-shadow:none;
+  animation:ascii-rain-v7 1s linear both;
+  will-change:transform,opacity;
+}
+@keyframes ascii-rain-v7 {
+  0% {opacity:0; transform:translateY(-1.3em);}
+  12% {opacity:.95;}
+  55% {opacity:.9;}
+  100% {opacity:0; transform:translateY(var(--fall));}
+}
+#content.episode-switching .title {animation:none !important;}
+@media(prefers-reduced-motion:reduce) {
+  body.audio-playing .archive a.is-loaded .playing-glyph {animation:none;}
+  #content .ascii-raindrop {animation:none;}
+}

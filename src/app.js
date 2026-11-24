@@ -18,7 +18,7 @@ let episode=fromAddress||byNumber(lastEpisode)||byNumber(70);
 // Keep one public-facing URL. Legacy /seventy/ etc. are resolved then canonicalized.
 history.replaceState({episode:episode.order},'', '/');
 const wave=createVisualizer(audio,$('terminal-wave'));
-let volume=1, eternal=false, toastTimer, transitionTimer=0, scrambleFrame=0, hoverEpisode=null;
+let volume=1, eternal=false, toastTimer, transitionTimer=0, hoverEpisode=null;
 const archiveItems = new Map();
 let archiveCursor=null;
 
@@ -61,7 +61,11 @@ function renderArchive(){
     const a=makeLink(`${String(e.order).padStart(2,'0')}: ${e.title.replace(/^\d{1,2}:\s*/,'')}`,'/');
     a.className=(e.order===62?'special ':'')+(episode.order===e.order?'is-loaded ':'');
     if(e.order===episode.order)a.setAttribute('aria-current','true');
-    const em=document.createElement('em');em.textContent=a.textContent;a.replaceChildren(em);
+    const em=document.createElement('em');em.textContent=a.textContent;
+    const indicator=document.createElement('span');
+    indicator.className='playing-glyph';indicator.setAttribute('aria-hidden','true');
+    indicator.textContent='*';
+    a.replaceChildren(indicator, em);
     archiveItems.set(e.order,a);
     a.addEventListener('pointerenter',()=>{hoverEpisode=e.order;positionArchiveCursor(e.order);});
     a.addEventListener('focus',()=>{hoverEpisode=e.order;positionArchiveCursor(e.order);});
@@ -81,6 +85,13 @@ function updatePlayback(){
   $('sidebar-play').textContent=playing?'[stop]':'[play]';$('main-play').textContent=playing?'[stop]':'[play]';
   $('elapsed').textContent=fmtTime(audio.currentTime);$('volume-status').textContent=Math.round(audio.volume*100)+'%';
   document.body.classList.toggle('audio-playing', playing);
+  // The animated mark belongs exclusively to the selected entry in the right archive.
+  // No particle effect is ever rendered over the middle-column tracklist.
+  const marker=archiveItems.get(episode.order)?.querySelector('.playing-glyph');
+  if (marker && playing) {
+    const marks=['*','\"',"'",'^','_'];
+    marker.textContent=marks[Math.floor(performance.now()/170)%marks.length];
+  }
 }
 function renderEpisode(){
   $('episode-number').textContent=episode.order;
@@ -95,109 +106,60 @@ function renderEpisode(){
   for(const name of episode.tracklist){
     tracks.append(makeLink(name,`https://www.google.com/search?q=${encodeURIComponent('site:discogs.com '+name)}`,'subtle-hover'),document.createElement('br'));
   }
-  $('tracklist').replaceChildren(tracks, makeBouncingSymbols());
+  $('tracklist').replaceChildren(tracks);
   const links=document.createDocumentFragment();
   for(const link of episode.links){if(/^https?:\/\//.test(link.href))links.append(makeLink(link.label||link.href,link.href,'blue'),document.createElement('br'));}
   $('episode-links').replaceChildren(links);
   renderArchive();updatePlayback();
 }
-// Lightweight, decorative audio glyphs. They sit above the track names without
-// changing the real text, its wrapping, or the links, and move only while playing.
-function makeBouncingSymbols(){
-  const field=document.createElement('div');
-  field.className='bouncing-glyphs';
-  field.setAttribute('aria-hidden','true');
-  const alphabet=['*','"',"'",'^','_'];
-  for(let i=0;i<22;i++){
-    const char=document.createElement('span');
-    char.className='bouncing-glyph';
-    char.textContent=alphabet[(i*7+episode.order)%alphabet.length];
-    const x=(i*37+episode.order*13)%92+3;
-    const y=(i*29+episode.order*7)%90+3;
-    char.style.left=`${x}%`;
-    char.style.top=`${y}%`;
-    char.style.animationDelay=`${-(i*0.29)%3.6}s`;
-    char.style.animationDuration=`${1.5+(i%7)*0.29}s`;
-    field.append(char);
-  }
-  return field;
-}
-
-// Scatter falling characters over the episode details while the next mix
-// appears. Completely separate from (and pointer-transparent to) real links.
+// The transition is an OPAQUE, temporary canvas: the entire middle column
+// is blank behind it. Falling glyphs appear briefly, then the new episode
+// content is revealed. There is no overlay or decoration during playback.
 function startAsciiRain(){
   const layer=$('episode-transition');
+  const region=$('content');
   clearTimeout(transitionTimer);
-  const symbols=['*','"',"'",'^','_','°','·','~'];
+  layer.replaceChildren();
+  region.classList.remove('episode-switching');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+  region.classList.add('episode-switching');
+  region.setAttribute('aria-busy','true');
+  const symbols=['*', '"', "'", '^', '_', '.', '/', ':', '-', '~'];
+  const colors=['green','green','purple','orange','blue','yellow'];
+  const falls=Math.max(window.innerHeight, region.clientHeight, 540)+120;
   const fragment=document.createDocumentFragment();
-  for(let i=0;i<86;i++){
+  const density=70;
+  for(let i=0;i<density;i++){
     const drop=document.createElement('span');
     drop.className='ascii-raindrop';
-    drop.textContent=symbols[(i*11+episode.order)%symbols.length];
-    const x=(i*53+episode.order*7)%99;
-    drop.style.left=`${x}%`;
-    drop.style.top=`${-10-(i*19)%38}%`;
-    drop.style.animationDelay=`${(i*17%53)/100}s`;
-    drop.style.animationDuration=`${1.02+(i%9)*0.071}s`;
-    drop.style.setProperty('--fall', `${210+(i*29)%420}px`);
-    drop.style.color=`var(--c-${['purple','blue','green','yellow','fuschia'][i%5]})`;
+    const length=1+(i*7+episode.order)%4;
+    drop.textContent=Array.from({length},(_,j)=>symbols[(i*11+j*3+episode.order)%symbols.length]).join('\n');
+    drop.style.left=`${(i*67+episode.order*7)%97}%`;
+    drop.style.top=`${-4-(i*17)%18}%`;
+    drop.style.setProperty('--fall',`${falls+(i%8)*35}px`);
+    drop.style.animationDelay=`${(i*29%47)/100}s`;
+    drop.style.animationDuration=`${0.82+(i%6)*0.11}s`;
+    drop.classList.add(colors[i%colors.length]);
     fragment.append(drop);
   }
   layer.replaceChildren(fragment);
-  layer.classList.remove('active');
-  void layer.offsetWidth;
   layer.classList.add('active');
-  transitionTimer=setTimeout(()=>{layer.classList.remove('active');layer.replaceChildren();},1750);
-}
-function animateEpisodeChange(){
-  const region=$('content');
-  const nodes=[...$('tracklist').querySelectorAll('a')];
-  if(!nodes.length || matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-  cancelAnimationFrame(scrambleFrame);
-  region.classList.remove('episode-switching');
-  void region.offsetWidth;
-  region.classList.add('episode-switching');
-  startAsciiRain();
-  const original=nodes.map(node=>node.textContent);
-  const symbols=['*','"',"'",'^','_','.',':','~'];
-  const start=performance.now();
-  const duration=1350;
-  function drop(now){
-    const t=Math.min(1,(now-start)/duration);
-    // This narrow band progresses row by row, TOP -> BOTTOM like rainfall.
-    const front=t*(nodes.length+7);
-    const cycle=Math.floor(now/48);
-    nodes.forEach((node,row)=>{
-      const distance=front-row;
-      const baseline=original[row];
-      if(distance<0||distance>7||t>=1){node.textContent=baseline;return;}
-      let text='';
-      const intensity=Math.sin(Math.PI*Math.min(1,distance/7));
-      for(let col=0;col<baseline.length;col++){
-        const ch=baseline[col];
-        if(ch===' '){text+=' ';continue;}
-        const jitter=(col*19+row*31+cycle*11+episode.order)%100;
-        text+=jitter < intensity*70 ? symbols[(col+row*3+cycle)%symbols.length] : ch;
-      }
-      node.textContent=text;
-    });
-    if(t<1) scrambleFrame=requestAnimationFrame(drop);
-    else {
-      nodes.forEach((node,i)=>{node.textContent=original[i];});
-      region.classList.remove('episode-switching');
-    }
-  }
-  scrambleFrame=requestAnimationFrame(drop);
+  transitionTimer=setTimeout(()=>{
+    layer.classList.remove('active');
+    layer.replaceChildren();
+    region.classList.remove('episode-switching');
+    region.removeAttribute('aria-busy');
+  }, 1330);
 }
 function selectEpisode(next,navigate=false,autoplay=false){
   if(!next)return;
   const hasChanged=episode.order!==next.order;
-  cancelAnimationFrame(scrambleFrame);
   audio.pause();audio.src=next.file;audio.load();episode=next;
   if(navigate)history.pushState({episode:next.order},'','/');
   try{localStorage.setItem('coding-mixes-last-episode-v4',JSON.stringify(episode.order));}catch{}
   renderEpisode();wave.setEpisode(episode.order);$('content').scrollTop=0;
-  if(hasChanged)animateEpisodeChange();
+  if(hasChanged)startAsciiRain();
   if(autoplay)start();
 }
 function start(){

@@ -1,7 +1,7 @@
 # Music for Coding
 
-Music for Coding is a minimalist music website for listening to long-form mixes while programming, studying, or focusing. Its dark, terminal-inspired interface puts the music first, with a browsable collection of episodes and tracklists.
+Music for Coding is a minimalist, terminal-style music website for listening to long mixes while programming, studying, or focusing. Explore 80 episodes, browse their tracklists, save favourites, and control playback using simple text commands.
 
-The player includes episode navigation, play and stop controls, seeking, volume adjustment, favourites, shuffle, and a colorful multi-line ASCII audio visualization, bouncing glyphs during playback, and falling-character transitions between episodes. It also supports keyboard controls, fullscreen mode, and a responsive layout.
+The interface features a one-line animated ASCII music signal, a bouncing symbol beside the currently playing episode, and a brief falling-ASCII transition when changing episodes. It also includes shuffle, seeking, volume controls, keyboard shortcuts, and a responsive layout.
 
 **Listen online:** https://music-for-coding.vercel.app/
