@@ -1,30 +1,48 @@
-# mmusic-for-coding
+# musicForProgramming(); — close-layout rebuild
 
-music-for-coding
+A lightweight, static, responsive listening room rebuilt for the **BlkYass/music-for-coding** repository. This version uses the dark typography, colors, responsive column proportions and terminal-style navigation of the reference supplied in the conversation, not the previous dashboard layout.
 
-## What's included
+## Included
 
-- The same overall **three-column, text-only presentation** as the reference screenshot (no cards, borders, dashboard elements, or spectrum visualizer).
-- 80 archive **labels** from the user-provided HTML source and Episode 70's full user-provided **tracklist and metadata**.
-- Functional playback, time counter, rewind/forward, volume, random, favourites, invert, and keyboard shortcuts.
-- The Episode 70 MP3 is referenced via the original third-party `datashat.net` URL **supplied by the user**; no MP3s are copied, downloaded, or redistributed. Public streaming requires authorization from the owner. If the remote service does not allow streaming, replace this URL with a licensed file you host.
-- Other episodes use a clearly identified **original generative audio demo** rather than misrepresenting or copying their actual recordings and tracklists.
-- Responsive two-column/mobile layouts and standard keyboard navigation.
+- IBM Plex Mono **ExtraLight (200)** headings and **Regular (400)** UI. The font is fetched from Google Fonts; no font binaries are bundled.
+- The original-inspired 25% / 50% / 25% desktop column arrangement, narrow typography, syntax highlighting, minimal player, archive highlights and compact tracklist typography.
+- All **80 episode titles**, **80 external MP3 URLs**, durations, file sizes, 1,392 tracklist entries and the artists' external sites, extracted from your uploaded JavaScript data.
+- Play, stop, back/forward 30 seconds, previous/next, random, volume, favourites, invert, fullscreen, picture-in-picture where supported, a local RSS feed, and continuous random playback (`[mfp.eternal]`).
+- All on-site navigation stays on your Vercel site. No links to the reference website are embedded in the interface or source code. Audio streams come from external `datashat.net` URLs, and track titles open music-search results, not the reference site.
 
-**Accuracy:** This is a close visual reproduction, not the actual original website or its production code. Font rendering, line wrapping, and original site's extra controls can differ by browser/screen size.
+**Important:** These are external MP3 links provided in the uploaded files, **not audio files distributed by this package**. Audio availability is subject to the remote host. Before offering the mixes publicly, confirm you have permission to stream them and to use episode titles, tracklists and other content. You can swap out the `file` field in `src/episodes.js` with licensed MP3 URLs you host or control.
 
+## Local development
 
+Open the folder that contains `index.html` in PowerShell:
 
-```bash
-
+```powershell
+cd "C:\test_perso\music-for-coding\music-for-coding-website\focus-terminal-music"
+python -m http.server 8000
 ```
 
-If the extracted files are at a different path, adjust the `cp` source. Make sure you copy into the directory **containing the repo's `index.html`**, not a nested duplicate folder.
+Then open http://localhost:8000/. You can browse the episodes from the archive. Deep links such as `/seventy/` work on Vercel via `vercel.json`.
 
-## Vercel
+## Update the existing repository
 
-Your project is already linked to the GitHub repository; pushing to `main` starts automatic deployment. No `vercel login`, framework, environment variables, or build step is needed. Vercel preset: Other. Root directory: folder containing `index.html`.
+Save `music-for-coding-v3.zip` in Downloads, then run in **PowerShell**:
 
-## Notes
+```powershell
+$project = "C:\test_perso\music-for-coding\music-for-coding-website\focus-terminal-music"
+$zip = "$HOME\Downloads\music-for-coding-v3.zip"
+$temp = "$HOME\Downloads\music-for-coding-v3-extracted"
+Expand-Archive -Path $zip -DestinationPath $temp -Force
+Copy-Item -Path "$temp\focus-terminal-music\*" -Destination $project -Recurse -Force
+Set-Location $project
+git add -A
+git commit -m "Rebuild layout with IBM Plex Mono and 80 real episode links"
+git push origin main
+```
 
-This is an independently built visual recreation. The original site's music, distinctive branding and archive belong to their respective owners. Don't misrepresent the replica as the original site or redistribute music without permission.
+Your existing GitHub-to-Vercel link should trigger an automatic redeployment. You do not need the Vercel CLI.
+
+## Testing and limitations
+
+The layout and JavaScript were tested using Chromium with an in-memory page. The archive, track details, favourites and theme inversion worked with no JavaScript page errors. Live remote MP3 delivery was **not verified from this environment** and may require authorized hosting or a CORS-compatible remote stream. Font rendering may differ if your network blocks Google Fonts.
+
+This is an independently built site. Do not present it as the original project's official website.

@@ -1,208 +1,119 @@
-import { episodes, episodeBySlug, episodeById, clockTime } from './data.js';
-import { AudioEngine } from './audio.js';
+import { episodes } from './episodes.js';
 
 const $ = id => document.getElementById(id);
-const storage = {
-  read(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch { return fallback; } },
-  write(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ } }
+const audio = $('audio');
+const bySlug = slug => episodes.find(e => e.slug === slug);
+const byNumber = num => episodes.find(e => e.order === num);
+const favKey='coding-mixes-favourites-v3';
+const getSaved=(key,defaultValue)=>{try { return JSON.parse(localStorage.getItem(key)) ?? defaultValue; } catch { return defaultValue; }};
+const favorites = new Set(getSaved(favKey,[]));
+const seconds = duration => duration.split(':').reduce((s,n) => s * 60 + Number(n), 0);
+const fmtTime = sec => { sec=Math.max(0,Math.floor(sec||0)); return [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':'); };
+const fmtSize = bytes => `${Math.round(Number(bytes) / 1048576)} MB`;
+const slug=location.pathname.split('/').filter(Boolean).at(-1);
+let episode=bySlug(slug)||byNumber(Number(new URLSearchParams(location.search).get('episode')))||byNumber(70);
+let volume=1, eternal=false, toastTimer;
+
+function notify(message){ const t=$('toast');t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500); }
+function makeLink(label,href,className=''){
+  const a=document.createElement('a'); a.textContent=label;a.href=href;a.className=className;
+  if(/^https?:\/\//.test(href)){a.target='_blank';a.rel='noopener noreferrer';}return a;
+}
+function renderArchive(){
+  const fragment=document.createDocumentFragment();
+  for(const e of episodes){
+    const a=makeLink(`${String(e.order).padStart(2,'0')}: ${e.title.replace(/^\d{1,2}:\s*/,'')}`,`/${e.slug}/`);
+    a.className=(e.order===62?'special ':'')+(episode.order===e.order?'selected':'');
+    if(e.order===episode.order)a.setAttribute('aria-current','page');
+    const em=document.createElement('em');em.textContent=a.textContent;a.replaceChildren(em);
+    a.addEventListener('click',evt=>{if(evt.button||evt.metaKey||evt.ctrlKey||evt.shiftKey||evt.altKey)return;evt.preventDefault();selectEpisode(e,true);});
+    fragment.append(a);
+  }
+  $('episode-archive').replaceChildren(fragment);
+}
+function updatePlayback(){
+  const playing=!audio.paused&&!audio.ended;
+  $('sidebar-play').textContent=playing?'[stop]':'[play]';$('main-play').textContent=playing?'[stop]':'[play]';
+  $('elapsed').textContent=fmtTime(audio.currentTime);$('volume-status').textContent=Math.round(audio.volume*100)+'%';
+  const progress=Math.min(1,(audio.currentTime||0)/(audio.duration||seconds(episode.duration)));
+  const marks=Math.min(34,Math.max(0,Math.round(progress*34)));
+  $('ascii-progress').textContent='─'.repeat(marks)+'·'+'─'.repeat(34-marks);
+}
+function renderEpisode(){
+  $('episode-number').textContent=episode.order;
+  $('episode-name').textContent=episode.title.replace(/^\d{1,2}:\s*/,'');
+  $('duration').textContent=episode.duration;$('filesize').textContent=fmtSize(episode.filesize);
+  $('source').href=episode.file;
+  $('now-playing').textContent=`• Episode ${episode.order}: ${episode.title.replace(/^\d{1,2}:\s*/,'')}`;
+  $('favourite').textContent=favorites.has(episode.order)?'[forget]':'[favourite]';
+  $('favourite').setAttribute('aria-pressed',String(favorites.has(episode.order)));
+  document.title=`Episode ${episode.order}: ${episode.title.replace(/^\d{1,2}:\s*/,'')} · musicForProgramming();`;
+  const tracks=document.createDocumentFragment();
+  for(const name of episode.tracklist){
+    tracks.append(makeLink(name,`https://www.google.com/search?q=${encodeURIComponent('site:discogs.com '+name)}`,'subtle-hover'),document.createElement('br'));
+  }
+  $('tracklist').replaceChildren(tracks);
+  const links=document.createDocumentFragment();
+  for(const link of episode.links){if(/^https?:\/\//.test(link.href))links.append(makeLink(link.label||link.href,link.href,'blue'),document.createElement('br'));}
+  $('episode-links').replaceChildren(links);
+  renderArchive();updatePlayback();
+}
+function selectEpisode(next,navigate=false,autoplay=false){
+  if(!next)return;
+  audio.pause();audio.src=next.file;audio.load();episode=next;
+  if(navigate)history.pushState({episode:next.order},'',`/${next.slug}/`);
+  renderEpisode();$('content').scrollTop=0;
+  if(autoplay)start();
+}
+async function start(){try{await audio.play();}catch{notify('External MP3 could not play. Try [source] or check stream availability.');}updatePlayback();}
+function stop(){audio.pause();audio.currentTime=0;updatePlayback();}
+function toggle(){if(audio.paused)start();else stop();}
+function seek(diff){try{audio.currentTime=Math.max(0,Math.min(audio.duration||seconds(episode.duration),audio.currentTime+diff));}catch{}updatePlayback();}
+function step(n){selectEpisode(byNumber(((episode.order-1+n+80)%80)+1),true,true);}
+function shuffle(){const options=episodes.filter(e=>e.order!==episode.order);selectEpisode(options[Math.floor(Math.random()*options.length)],true,true);}
+function setVolume(diff){volume=Math.max(0,Math.min(1,Math.round((volume+diff)*10)/10));audio.volume=volume;updatePlayback();}
+function toggleFavorite(){if(favorites.has(episode.order))favorites.delete(episode.order);else favorites.add(episode.order);try{localStorage.setItem(favKey,JSON.stringify([...favorites]));}catch{}renderEpisode();}
+$('sidebar-play').addEventListener('click',toggle);$('main-play').addEventListener('click',toggle);
+$('previous').addEventListener('click',()=>step(-1));$('next').addEventListener('click',()=>step(1));
+$('rewind').addEventListener('click',()=>seek(-30));$('forward').addEventListener('click',()=>seek(30));
+$('random').addEventListener('click',shuffle);
+$('volume-down').addEventListener('click',()=>setVolume(-.1));$('volume-up').addEventListener('click',()=>setVolume(.1));
+$('favourite').addEventListener('click',toggleFavorite);
+$('invert').addEventListener('click',()=>document.body.classList.toggle('invert'));
+$('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{notify('Fullscreen is unavailable.');}});
+$('enterprise').addEventListener('click',()=>{document.body.classList.toggle('bloom');notify(document.body.classList.contains('bloom')?'Enterprise display on':'Enterprise display off');});
+$('eternal').addEventListener('click',()=>{eternal=!eternal;$('eternal').textContent=eternal?'[eternal: on]':'[mfp.eternal]';notify(eternal?'Continuous random playback enabled':'Continuous random playback disabled');});
+$('pip').addEventListener('click',async()=>{
+  if(!('documentPictureInPicture' in window)){notify('Picture-in-picture is not available in this browser.');return;}
+  try{const pip=await window.documentPictureInPicture.requestWindow({width:380,height:185});
+    pip.document.body.style.cssText='background:#1a1a1a;color:#1beb9e;font:16px monospace;padding:16px';
+    const title=pip.document.createElement('p');title.textContent=episode.title;
+    const button=pip.document.createElement('button');button.textContent='[play / stop]';button.style.cssText='background:none;border:0;color:inherit;font:inherit;cursor:pointer';button.addEventListener('click',toggle);
+    pip.document.body.append(title,button);
+  }catch{notify('Picture-in-picture could not start.');}
+});
+const modal=$('info-modal');
+const modalData={
+  about:['About','A series of mixes intended for listening while programming to focus the brain and inspire the mind. Choose an episode on the right and press [play].'],
+  credits:['Credits','Independent interface recreation built from metadata supplied for this project. Music belongs to its respective artists and rightsholders. Recordings are streamed from external sources, not bundled with this website.'],
+  folder:['Folder','Add your own licensed artwork to the project to enable a local artwork download.']
 };
-const favorites = new Set(storage.read('terminal-favourites', []));
-
-function episodeFromLocation() {
-  const path = location.pathname.split('/').filter(Boolean).at(-1);
-  const query = Number(new URLSearchParams(location.search).get('episode'));
-  return episodeBySlug(path) || (query ? episodeById(query) : null) || episodeById(70);
-}
-
-let current = episodeFromLocation();
-let volume = 0.7;
-let noticeTimer = null;
-let isNavigating = false;
-const player = new AudioEngine({
-  onEnded: () => { renderPlayback(); notify('End of episode. Choose another from the archive.'); },
-  onError: message => { renderPlayback(); notify(message); }
+document.querySelectorAll('[data-modal]').forEach(b=>b.addEventListener('click',()=>{const [title,copy]=modalData[b.dataset.modal];$('info-title').textContent=title;const p=document.createElement('p');p.textContent=copy;$('info-content').replaceChildren(p);modal.showModal();}));
+$('modal-close').addEventListener('click',()=>modal.close());
+if(getSaved('coding-mixes-cookies',false))$('cookie-notice').hidden=true;
+$('cookie-dismiss').addEventListener('click',()=>{try{localStorage.setItem('coding-mixes-cookies','true');}catch{}$('cookie-notice').hidden=true;});
+for(const event of ['play','pause','timeupdate','durationchange'])audio.addEventListener(event,updatePlayback);
+audio.addEventListener('ended',()=>{updatePlayback();if(eternal)shuffle();});
+audio.addEventListener('error',()=>notify('MP3 unavailable or blocked. Open [source] to test the remote audio URL.'));
+window.addEventListener('popstate',()=>{const slug=location.pathname.split('/').filter(Boolean).at(-1);selectEpisode(bySlug(slug)||byNumber(70));});
+window.addEventListener('keydown',event=>{if(event.target.closest('input,textarea,button,select,[contenteditable=true]')||modal.open)return;
+  if(event.code==='Space'){event.preventDefault();toggle();}else if(event.key==='ArrowLeft'){event.preventDefault();seek(-30);}else if(event.key==='ArrowRight'){event.preventDefault();seek(30);}
 });
-player.setVolume(volume);
-player.load(current);
-
-function notify(text) {
-  const toast = $('toast');
-  toast.textContent = text;
-  toast.classList.add('visible');
-  clearTimeout(noticeTimer);
-  noticeTimer = setTimeout(() => toast.classList.remove('visible'), 3500);
-}
-
-function renderArchive() {
-  const nav = $('episode-archive');
-  const frag = document.createDocumentFragment();
-  for (const ep of episodes) {
-    const link = document.createElement('a');
-    link.href = `/${ep.slug}/`;
-    link.className = 'archive-item' + (current.id === ep.id ? ' active' : '') + (ep.id === 62 ? ' alt' : '');
-    link.textContent = `${String(ep.id).padStart(2,'0')}: ${ep.title}`;
-    if (current.id === ep.id) link.setAttribute('aria-current','page');
-    link.addEventListener('click', event => {
-      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-      event.preventDefault();
-      chooseEpisode(ep);
-    });
-    frag.append(link);
-  }
-  nav.replaceChildren(frag);
-}
-
-function renderEpisode() {
-  $('episode-number').textContent = String(current.id).padStart(2,'0');
-  $('episode-name').textContent = current.title;
-  $('duration').textContent = current.audioSrc ? '1:03:30' : '1:00:00 demo';
-  $('file-size').textContent = current.size || 'ambient demo';
-  $('source').textContent = current.audioSrc ? '[source]' : '[original]';
-  $('source').href = current.audioSrc || `https://musicforprogramming.net/${current.slug}/`;
-  $('source').title = current.audioSrc ? 'Open the original external MP3 URL' : 'Visit the original episode listing';
-  const isFavorite = favorites.has(current.id);
-  $('favorite').textContent = isFavorite ? '[favourited]' : '[favourite]';
-  $('favorite').setAttribute('aria-pressed', String(isFavorite));
-  document.title = `Episode ${current.id}: ${current.title} — musicForProgramming();`;
-
-  const tracklist = $('tracklist');
-  tracklist.replaceChildren();
-  if (current.tracks.length) {
-    for (const name of current.tracks) {
-      const line = document.createElement('div');
-      line.className = 'trackline';
-      line.textContent = name;
-      tracklist.append(line);
-    }
-  } else {
-    const note = document.createElement('p');
-    note.className = 'muted';
-    note.textContent = '// Tracklist and original recording are not included in this replica. Play starts an original ambient demo. Open [original] for the actual mix.';
-    tracklist.append(note);
-  }
-  $('episode-links').replaceChildren();
-  if (current.id === 70) {
-    const a = document.createElement('a');
-    a.href = 'https://soundcloud.com/thingsdisappear';
-    a.rel = 'noopener noreferrer';
-    a.target = '_blank';
-    a.className = 'green';
-    a.textContent = 'https://soundcloud.com/thingsdisappear';
-    $('episode-links').append(a);
-  }
-  renderArchive();
-  renderPlayback();
-}
-
-function renderPlayback() {
-  const playing = player.isPlaying;
-  $('sidebar-play').textContent = playing ? '[pause]' : '[play]';
-  $('main-play').textContent = playing ? '[pause]' : '[play]';
-  $('sidebar-play').setAttribute('aria-label', playing ? 'Pause' : 'Play');
-  $('main-play').setAttribute('aria-label', playing ? 'Pause' : 'Play');
-  const elapsed = player.currentTime;
-  $('elapsed').textContent = elapsed > 0 || playing ? clockTime(elapsed) : '--:--:--';
-}
-
-async function togglePlayback() {
-  if (player.isPlaying) player.pause();
-  else await player.play();
-  renderPlayback();
-}
-
-async function chooseEpisode(ep, autoplay = false, historyMode = 'push') {
-  if (!ep || isNavigating) return;
-  isNavigating = true;
-  current = ep;
-  player.load(ep);
-  if (historyMode === 'push') history.pushState({ episode: ep.id }, '', `/${ep.slug}/`);
-  renderEpisode();
-  $('main').scrollTop = 0;
-  isNavigating = false;
-  if (autoplay) await togglePlayback();
-}
-
-function seek(seconds) {
-  player.seek(player.currentTime + seconds);
-  renderPlayback();
-}
-function changeVolume(steps) {
-  volume = Math.max(0, Math.min(1, Math.round((volume + steps) * 10) / 10));
-  player.setVolume(volume);
-  notify('Volume: ' + Math.round(volume * 100) + '%');
-}
-function toggleFavorite() {
-  if (favorites.has(current.id)) favorites.delete(current.id);
-  else favorites.add(current.id);
-  storage.write('terminal-favourites', [...favorites]);
-  renderEpisode();
-}
-function randomEpisode() {
-  const options = episodes.filter(ep => ep.id !== current.id);
-  chooseEpisode(options[Math.floor(Math.random() * options.length)], true);
-}
-
-$('sidebar-play').addEventListener('click', togglePlayback);
-$('main-play').addEventListener('click', togglePlayback);
-$('prev-episode').addEventListener('click', () => chooseEpisode(episodeById(current.id === 1 ? 80 : current.id - 1)));
-$('next-episode').addEventListener('click', () => chooseEpisode(episodeById(current.id === 80 ? 1 : current.id + 1)));
-$('rewind').addEventListener('click', () => seek(-10));
-$('forward').addEventListener('click', () => seek(10));
-$('random').addEventListener('click', randomEpisode);
-$('volume-down').addEventListener('click', () => changeVolume(-0.1));
-$('volume-up').addEventListener('click', () => changeVolume(0.1));
-$('favorite').addEventListener('click', toggleFavorite);
-$('invert').addEventListener('click', () => {
-  document.body.classList.toggle('inverted');
-  notify(document.body.classList.contains('inverted') ? 'Light mode' : 'Dark mode');
-});
-$('fullscreen').addEventListener('click', async () => {
-  try {
-    if (document.fullscreenElement) await document.exitFullscreen();
-    else await document.documentElement.requestFullscreen();
-  } catch { notify('Fullscreen unavailable in this browser.'); }
-});
-$('pip').addEventListener('click', async () => {
-  if (!('documentPictureInPicture' in window)) {
-    notify('Picture-in-picture requires a supported browser.');
-    return;
-  }
-  try {
-    const pip = await window.documentPictureInPicture.requestWindow({ width: 350, height: 220 });
-    const body = pip.document.body;
-    body.style.cssText = "background:#1a1a1a;color:#05d5a1;font:20px 'Courier New',monospace;padding:15px";
-    const label = pip.document.createElement('p'); label.textContent = `Episode ${current.id}: ${current.title}`;
-    const btn = pip.document.createElement('button');
-    btn.textContent = player.isPlaying ? '[pause]' : '[play]';
-    btn.style.cssText = 'color:inherit;background:none;border:0;font:inherit;cursor:pointer';
-    btn.addEventListener('click', async () => { await togglePlayback(); btn.textContent = player.isPlaying ? '[pause]' : '[play]'; });
-    body.append(label, btn);
-  } catch { notify('Picture-in-picture could not be opened.'); }
-});
-
-const dialogCopy = {
-  about: ['About', 'A series of mixes intended for listening while programming to focus the brain and inspire the mind. This website is an independently made visual recreation of the original musicforprogramming.net design.'],
-  credits: ['Credits', 'Original concept and published archive: musicforprogramming.net. The text-only visual recreation and ambient demonstration audio are separately implemented. Episode 70 tracklist and remote MP3 reference were supplied for this project.'],
-  enterprise: ['Enterprise mode', 'A minimalist option with no trackers, ads, accounts or paid services. This replica runs as a plain static page.']
-};
-document.querySelectorAll('[data-dialog]').forEach(button => {
-  button.addEventListener('click', () => {
-    const [title, copy] = dialogCopy[button.dataset.dialog];
-    $('dialog-title').textContent = title;
-    $('dialog-content').textContent = copy;
-    $('info-dialog').showModal();
-  });
-});
-window.addEventListener('popstate', () => chooseEpisode(episodeFromLocation(), false, 'none'));
-window.addEventListener('keydown', event => {
-  if (event.target.closest('input,textarea,select,[contenteditable=true]')) return;
-  if (document.querySelector('dialog[open]')) return;
-  if (event.code === 'Space') { event.preventDefault(); togglePlayback(); }
-  else if (event.key === 'ArrowLeft') { event.preventDefault(); seek(-10); }
-  else if (event.key === 'ArrowRight') { event.preventDefault(); seek(10); }
-  else if (event.key.toLowerCase() === 'f') toggleFavorite();
-  else if (event.key.toLowerCase() === 'i') $('invert').click();
-  else if (event.key.toLowerCase() === 'r') randomEpisode();
-});
-setInterval(renderPlayback, 300);
-renderEpisode();
+const total=episodes.reduce((s,e)=>s+seconds(e.duration),0);
+$('stat-episodes').textContent=`// ${episodes.length} episodes`;
+$('stat-tracks').textContent=`// ${episodes.reduce((s,e)=>s+e.tracklist.length,0)} tracks`;
+$('stat-hours').textContent=`// ${Math.floor(total/3600)} hours`;
+$('stat-minutes').textContent=`// ${Math.floor(total/60)%60} minutes`;
+$('stat-seconds').textContent=`// ${total%60} seconds`;
+selectEpisode(episode);
+setInterval(updatePlayback,500);
