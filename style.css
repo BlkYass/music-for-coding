@@ -495,3 +495,114 @@ dialog p { line-height:1.6; }
   .archive a { white-space:normal; }
   .stats { display:none; }
 }
+
+/* v4: compact multi-line music visualizer, like the terminal monitor in the reference. */
+.terminal-display {
+  padding-top: 0;
+  min-height: 8.5em;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  cursor: default;
+}
+.terminal-wave {
+  width: 100%;
+  height: 5.3em;
+  display: block;
+  overflow: hidden;
+  white-space: pre;
+  font-size: .86em;
+  line-height: 1.2em;
+  font-weight: 400;
+  opacity: 1;
+  font-variant-ligatures: none;
+}
+.terminal-wave .wave-line {
+  display: block;
+  width: 100%;
+  height: 1.2em;
+  white-space: pre;
+  overflow: hidden;
+}
+.terminal-wave.is-playing {text-shadow: 0 0 .18em currentColor;}
+.terminal-display .progress-line {height: var(--line); font-size: .95em;}
+.terminal-display .now-label {height:var(--line); font-size:.94em;}
+/* A brief seeded ASCII scatter + translucent circular glyph trace when tracks change. */
+#content {isolation:isolate;}
+.episode-transition {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 8;
+  width: 100%;
+  height: min(680px, 95vh);
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: none;
+}
+.episode-transition.active {visibility:visible;animation: glitch-vanish .82s steps(12,end) both;}
+.episode-transition.active::before,
+.episode-transition.active::after {
+  content: '';
+  position: absolute;
+  border: .85em solid var(--c-yellow);
+  border-radius: 50%;
+  opacity: .09;
+  width: 66%;
+  aspect-ratio: 1/1.45;
+  top: 14%;
+  left: 3%;
+  transform: rotate(-32deg);
+  animation: ring-drift .84s ease-out both;
+}
+.episode-transition.active::after {border-color:var(--c-purple);left:18%;top:4%;width:50%;opacity:.055;animation-delay: .04s;}
+.episode-transition .noise {
+  position: absolute;
+  white-space: pre;
+  font-size: .86em;
+  line-height: 1;
+  text-shadow: 0 0 .15em currentColor;
+  user-select: none;
+}
+.episode-switching #tracklist,
+.episode-switching #episode-links {animation: text-reveal .8s steps(7,end) both;}
+.episode-switching .title {animation: title-reveal .65s steps(6,end) both;}
+@keyframes glitch-vanish {
+  0% {opacity:.8;filter: blur(0);}
+  18% {opacity:.65;}
+  42% {opacity:.48;filter: blur(.6px);}
+  64% {opacity:.24;}
+  100% {opacity:0;filter: blur(2px);}
+}
+@keyframes ring-drift {
+  from {transform:translate(-12px,18px) rotate(-32deg) scale(.9);}
+  to {transform:translate(55px,-60px) rotate(24deg) scale(1.4);}
+}
+@keyframes text-reveal {
+  0%,12% {opacity:.1;clip-path:inset(0 0 90% 0);transform:translateX(-5px);}
+  30% {opacity:.5;clip-path:inset(0 0 56% 0);}
+  58% {opacity:.82;clip-path:inset(0 0 18% 0);}
+  100% {opacity:1;clip-path:inset(0 0 0 0);transform:none;}
+}
+@keyframes title-reveal {
+  0% {opacity:.25;transform:translateX(5px);}
+  28% {opacity:.65;transform:translateX(-4px);}
+  54% {opacity:.8;transform:translateX(2px);}
+  100% {opacity:1;transform:none;}
+}
+@media(min-width:1024px){
+  .terminal-display {padding-top: 0; margin-top: 1.65em; min-height: 9.6em;}
+}
+@media(max-width:767px){
+  .terminal-wave {font-size:.8em; height:5em;}
+  .terminal-display {min-height:8em;}
+  .episode-transition {height:360px;}
+}
+@media(prefers-reduced-motion:reduce){
+  .episode-transition.active {animation:none;opacity:0;visibility:hidden;}
+  .episode-switching #tracklist,
+  .episode-switching #episode-links,
+  .episode-switching .title {animation:none;}
+}

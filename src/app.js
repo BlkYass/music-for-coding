@@ -1,4 +1,5 @@
 import { episodes } from './episodes.js';
+import { createVisualizer } from './visualizer.js';
 
 const $ = id => document.getElementById(id);
 const audio = $('audio');
@@ -11,8 +12,13 @@ const seconds = duration => duration.split(':').reduce((s,n) => s * 60 + Number(
 const fmtTime = sec => { sec=Math.max(0,Math.floor(sec||0)); return [Math.floor(sec/3600),Math.floor(sec/60)%60,sec%60].map(n=>String(n).padStart(2,'0')).join(':'); };
 const fmtSize = bytes => `${Math.round(Number(bytes) / 1048576)} MB`;
 const slug=location.pathname.split('/').filter(Boolean).at(-1);
-let episode=bySlug(slug)||byNumber(Number(new URLSearchParams(location.search).get('episode')))||byNumber(70);
-let volume=1, eternal=false, toastTimer;
+const fromAddress=bySlug(slug)||byNumber(Number(new URLSearchParams(location.search).get('episode')));
+const lastEpisode=Number(getSaved('coding-mixes-last-episode-v4',70));
+let episode=fromAddress||byNumber(lastEpisode)||byNumber(70);
+// Keep one public-facing URL. Legacy /seventy/ etc. are resolved then canonicalized.
+history.replaceState({episode:episode.order},'', '/');
+const wave=createVisualizer(audio,$('terminal-wave'));
+let volume=1, eternal=false, toastTimer, transitionTimer=0;
 
 function notify(message){ const t=$('toast');t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500); }
 function makeLink(label,href,className=''){
@@ -22,7 +28,7 @@ function makeLink(label,href,className=''){
 function renderArchive(){
   const fragment=document.createDocumentFragment();
   for(const e of episodes){
-    const a=makeLink(`${String(e.order).padStart(2,'0')}: ${e.title.replace(/^\d{1,2}:\s*/,'')}`,`/${e.slug}/`);
+    const a=makeLink(`${String(e.order).padStart(2,'0')}: ${e.title.replace(/^\d{1,2}:\s*/,'')}`,'/');
     a.className=(e.order===62?'special ':'')+(episode.order===e.order?'selected':'');
     if(e.order===episode.order)a.setAttribute('aria-current','page');
     const em=document.createElement('em');em.textContent=a.textContent;a.replaceChildren(em);
@@ -58,14 +64,41 @@ function renderEpisode(){
   $('episode-links').replaceChildren(links);
   renderArchive();updatePlayback();
 }
+function animateEpisodeChange(){
+  const region=$('content'), layer=$('episode-transition');
+  region.classList.remove('episode-switching');
+  layer.classList.remove('active');
+  layer.replaceChildren();
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  // Deterministic scattering of tiny console glyphs, deliberately temporary.
+  const glyphs='~_\\/`°.*-+^;:%$!◦';
+  for(let i=0;i<118;i++){
+    const glyph=document.createElement('span');
+    glyph.className='noise '+(['yellow','orange','fuschia','green','blue'][i%5]);
+    glyph.textContent=glyphs[Math.floor(Math.abs(Math.sin(i*12.98+episode.order*5.4))*glyphs.length)%glyphs.length];
+    const x=((i*79+episode.order*19)%96);
+    const y=((i*43+i*i*7+episode.order*13)%88);
+    glyph.style.left=x+'%';glyph.style.top=y+'%';
+    glyph.style.opacity=String(.15+(i%7)*.08);
+    layer.append(glyph);
+  }
+  void layer.offsetWidth; // replay the animation even on rapid archive clicks
+  region.classList.add('episode-switching');
+  layer.classList.add('active');
+  clearTimeout(transitionTimer);
+  transitionTimer=setTimeout(()=>{layer.classList.remove('active');region.classList.remove('episode-switching');layer.replaceChildren();},850);
+}
 function selectEpisode(next,navigate=false,autoplay=false){
   if(!next)return;
+  const hasChanged=episode.order!==next.order;
   audio.pause();audio.src=next.file;audio.load();episode=next;
-  if(navigate)history.pushState({episode:next.order},'',`/${next.slug}/`);
-  renderEpisode();$('content').scrollTop=0;
+  if(navigate)history.pushState({episode:next.order},'','/');
+  try{localStorage.setItem('coding-mixes-last-episode-v4',JSON.stringify(episode.order));}catch{}
+  renderEpisode();wave.setEpisode(episode.order);$('content').scrollTop=0;
+  if(hasChanged)animateEpisodeChange();
   if(autoplay)start();
 }
-async function start(){try{await audio.play();}catch{notify('External MP3 could not play. Try [source] or check stream availability.');}updatePlayback();}
+async function start(){try{await wave.activate();await audio.play();}catch{notify('External MP3 could not play. Try [source] or check stream availability.');}updatePlayback();}
 function stop(){audio.pause();audio.currentTime=0;updatePlayback();}
 function toggle(){if(audio.paused)start();else stop();}
 function seek(diff){try{audio.currentTime=Math.max(0,Math.min(audio.duration||seconds(episode.duration),audio.currentTime+diff));}catch{}updatePlayback();}
@@ -96,7 +129,8 @@ const modal=$('info-modal');
 const modalData={
   about:['About','A series of mixes intended for listening while programming to focus the brain and inspire the mind. Choose an episode on the right and press [play].'],
   credits:['Credits','Independent interface recreation built from metadata supplied for this project. Music belongs to its respective artists and rightsholders. Recordings are streamed from external sources, not bundled with this website.'],
-  folder:['Folder','Add your own licensed artwork to the project to enable a local artwork download.']
+  folder:['Folder','Add your own licensed artwork to the project to enable a local artwork download.'],
+  'own-links':['Your links','Add links for your own Patreon and podcast accounts in index.html. This independent website does not redirect visitors to another project.']
 };
 document.querySelectorAll('[data-modal]').forEach(b=>b.addEventListener('click',()=>{const [title,copy]=modalData[b.dataset.modal];$('info-title').textContent=title;const p=document.createElement('p');p.textContent=copy;$('info-content').replaceChildren(p);modal.showModal();}));
 $('modal-close').addEventListener('click',()=>modal.close());
@@ -105,7 +139,7 @@ $('cookie-dismiss').addEventListener('click',()=>{try{localStorage.setItem('codi
 for(const event of ['play','pause','timeupdate','durationchange'])audio.addEventListener(event,updatePlayback);
 audio.addEventListener('ended',()=>{updatePlayback();if(eternal)shuffle();});
 audio.addEventListener('error',()=>notify('MP3 unavailable or blocked. Open [source] to test the remote audio URL.'));
-window.addEventListener('popstate',()=>{const slug=location.pathname.split('/').filter(Boolean).at(-1);selectEpisode(bySlug(slug)||byNumber(70));});
+window.addEventListener('popstate',event=>{const restored=byNumber(event.state?.episode)||byNumber(70);selectEpisode(restored);});
 window.addEventListener('keydown',event=>{if(event.target.closest('input,textarea,button,select,[contenteditable=true]')||modal.open)return;
   if(event.code==='Space'){event.preventDefault();toggle();}else if(event.key==='ArrowLeft'){event.preventDefault();seek(-30);}else if(event.key==='ArrowRight'){event.preventDefault();seek(30);}
 });
