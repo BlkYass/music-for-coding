@@ -23,6 +23,7 @@ export function createVisualizer(audio, element) {
   let animationId = 0;
   let lastPaint = 0;
   let ctx = null, analyser = null, bins = null;
+  let lastMeasuredLevel = null;
 
   // Do not force crossOrigin on the <audio> element: some external MP3 hosts
   // don't send Access-Control-Allow-Origin and would then refuse playback.
@@ -58,7 +59,11 @@ export function createVisualizer(audio, element) {
       try {
         analyser.getByteFrequencyData(bins);
         measured = bins.some(v => v > 3);
-      } catch {}
+        if (measured) {
+          const bass = bins.subarray(2, 85);
+          lastMeasuredLevel = bass.reduce((a, b) => a + b, 0) / (bass.length * 255);
+        } else lastMeasuredLevel = null;
+      } catch { lastMeasuredLevel = null; }
     }
     element.dataset.signal = !playing ? 'idle' : (measured ? 'frequency' : 'motion');
     element.classList.toggle('is-playing', playing);
@@ -93,5 +98,5 @@ export function createVisualizer(audio, element) {
     audio.addEventListener(event, refresh);
   animationId = requestAnimationFrame(frame);
   draw(0);
-  return {activate, refresh, setEpisode, dispose(){cancelAnimationFrame(animationId);if(ctx)ctx.close();}};
+  return {activate, refresh, setEpisode, getLevel(){return lastMeasuredLevel;}, dispose(){cancelAnimationFrame(animationId);if(ctx)ctx.close();}};
 }

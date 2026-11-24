@@ -886,3 +886,63 @@ body.audio-playing .archive a.is-loaded .playing-glyph {
   body.audio-playing .archive a.is-loaded .playing-glyph {animation:none;}
   #content .ascii-raindrop {animation:none;}
 }
+
+/* v8 — two-phase, text-only diagonal erase/reconstruct transition. */
+#content {position:relative;}
+#content > .episode-transition,
+#content > .episode-transition.active {
+  display:none !important;
+  position:absolute !important;
+  inset:0 !important;
+  width:100% !important;
+  height:100% !important;
+  min-height:100% !important;
+  z-index:30 !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  background:var(--c-black) !important;
+  overflow:hidden !important;
+  pointer-events:none !important;
+  animation:none !important;
+  padding:0 !important;
+}
+#content > .episode-transition.active {display:block !important;}
+#content.episode-switching > .full {visibility:hidden !important;}
+.episode-transition .transition-copy {
+  display:block;
+  position:relative;
+  width:100%;
+  min-height:100%;
+  margin:0;
+  padding:0;
+  pointer-events:none;
+  user-select:none;
+}
+.episode-transition .transition-cell {
+  display:inline;
+  white-space:inherit;
+  font-variant-ligatures:none;
+}
+/* The playing marker is a SINGLE glyph, next to the loaded episode ONLY. */
+.archive a.is-loaded::before {content:none !important;}
+.archive .playing-glyph {
+  display:none;
+  position:absolute;
+  right:calc(100% + .65ch);
+  top:0;
+  z-index:4;
+  width:1ch;
+  text-align:center;
+  color:var(--c-green);
+  font-style:normal;
+  pointer-events:none;
+  line-height:var(--line);
+  animation:none !important;
+  will-change:transform;
+}
+body.audio-playing .archive a.is-loaded .playing-glyph {display:block;animation:none !important;}
+#tracklist .bouncing-glyphs,#tracklist .bouncing-glyph {display:none !important;}
+@media(prefers-reduced-motion:reduce){
+  #content > .episode-transition.active {display:none !important;}
+  body.audio-playing .archive a.is-loaded .playing-glyph {transform:none !important;}
+}

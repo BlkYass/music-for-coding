@@ -19,6 +19,7 @@ let episode=fromAddress||byNumber(lastEpisode)||byNumber(70);
 history.replaceState({episode:episode.order},'', '/');
 const wave=createVisualizer(audio,$('terminal-wave'));
 let volume=1, eternal=false, toastTimer, transitionTimer=0, hoverEpisode=null;
+let transitionFrame=0, markerFrame=0;
 const archiveItems = new Map();
 let archiveCursor=null;
 
@@ -64,7 +65,7 @@ function renderArchive(){
     const em=document.createElement('em');em.textContent=a.textContent;
     const indicator=document.createElement('span');
     indicator.className='playing-glyph';indicator.setAttribute('aria-hidden','true');
-    indicator.textContent='*';
+    indicator.textContent='_';
     a.replaceChildren(indicator, em);
     archiveItems.set(e.order,a);
     a.addEventListener('pointerenter',()=>{hoverEpisode=e.order;positionArchiveCursor(e.order);});
@@ -87,11 +88,32 @@ function updatePlayback(){
   document.body.classList.toggle('audio-playing', playing);
   // The animated mark belongs exclusively to the selected entry in the right archive.
   // No particle effect is ever rendered over the middle-column tracklist.
-  const marker=archiveItems.get(episode.order)?.querySelector('.playing-glyph');
-  if (marker && playing) {
-    const marks=['*','\"',"'",'^','_'];
-    marker.textContent=marks[Math.floor(performance.now()/170)%marks.length];
+  if (playing && !markerFrame) markerFrame = requestAnimationFrame(animatePlayingMarker);
+  else if (!playing && markerFrame) {
+    cancelAnimationFrame(markerFrame);
+    markerFrame = 0;
   }
+} 
+
+// The indicator is a single, vertically bouncing glyph in the archive.
+// It travels from _ (lowest) to ' (highest) and reverses symmetrically.
+// Where permitted by the stream, signal energy also affects bounce height.
+const bounceChars = ['_', '.', 'o', '*', '^', "'"];
+function animatePlayingMarker() {
+  if (audio.paused || audio.ended) { markerFrame = 0; return; }
+  const marker = archiveItems.get(episode.order)?.querySelector('.playing-glyph');
+  if (marker) {
+    const t = audio.currentTime || performance.now() / 1000;
+    const phase = (t * 1.72) % 1;   // fast, smooth up-and-down bounce
+    const easedHeight = (1 - Math.cos(2 * Math.PI * phase)) * .5;
+    const sound = typeof wave.getLevel === 'function' ? wave.getLevel() : null;
+    const height = sound === null ? easedHeight : Math.min(1, easedHeight * (.78 + sound * .4));
+    const index = Math.max(0, Math.min(bounceChars.length - 1, Math.round(height * (bounceChars.length - 1))));
+    marker.textContent = bounceChars[index];
+    marker.style.transform = `translateY(${(.24 - height * .72).toFixed(3)}em)`;
+    marker.style.opacity = `${.65 + height * .35}`;
+  }
+  markerFrame = requestAnimationFrame(animatePlayingMarker);
 }
 function renderEpisode(){
   $('episode-number').textContent=episode.order;
@@ -112,54 +134,130 @@ function renderEpisode(){
   $('episode-links').replaceChildren(links);
   renderArchive();updatePlayback();
 }
-// The transition is an OPAQUE, temporary canvas: the entire middle column
-// is blank behind it. Falling glyphs appear briefly, then the new episode
-// content is revealed. There is no overlay or decoration during playback.
-function startAsciiRain(){
-  const layer=$('episode-transition');
-  const region=$('content');
-  clearTimeout(transitionTimer);
-  layer.replaceChildren();
-  region.classList.remove('episode-switching');
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+// The middle-column transition works on the text itself: first erase the old
+// characters diagonally (top-left to bottom-right), briefly leave a blank
+// column, then reveal the new characters as randomized ASCII resolves to text.
+// The visible middle content is cloned; the actual controls remain untouched.
+const TRANSITION_SYMBOLS = ["*", "'", "^", "_", ".", "o", "#", "[", "]", "+", "-", "~", "@"];
+const GLITCH_ERASE_MS = 560;
+const GLITCH_EMPTY_MS = 125;
+const GLITCH_REBUILD_MS = 900;
+let cancelTransition = () => {};
 
-  region.classList.add('episode-switching');
-  region.setAttribute('aria-busy','true');
-  const symbols=['*', '"', "'", '^', '_', '.', '/', ':', '-', '~'];
-  const colors=['green','green','purple','orange','blue','yellow'];
-  const falls=Math.max(window.innerHeight, region.clientHeight, 540)+120;
-  const fragment=document.createDocumentFragment();
-  const density=70;
-  for(let i=0;i<density;i++){
-    const drop=document.createElement('span');
-    drop.className='ascii-raindrop';
-    const length=1+(i*7+episode.order)%4;
-    drop.textContent=Array.from({length},(_,j)=>symbols[(i*11+j*3+episode.order)%symbols.length]).join('\n');
-    drop.style.left=`${(i*67+episode.order*7)%97}%`;
-    drop.style.top=`${-4-(i*17)%18}%`;
-    drop.style.setProperty('--fall',`${falls+(i%8)*35}px`);
-    drop.style.animationDelay=`${(i*29%47)/100}s`;
-    drop.style.animationDuration=`${0.82+(i%6)*0.11}s`;
-    drop.classList.add(colors[i%colors.length]);
-    fragment.append(drop);
+function cloneTextAsCells(source, layer) {
+  const scene = source.cloneNode(true);
+  scene.removeAttribute('id');
+  scene.classList.add('transition-copy');
+  scene.setAttribute('aria-hidden', 'true');
+  scene.querySelectorAll('[id]').forEach(n => n.removeAttribute('id'));
+  scene.querySelectorAll('a,button').forEach(n => n.tabIndex = -1);
+  const walker = document.createTreeWalker(scene, NodeFilter.SHOW_TEXT);
+  const originals = [];
+  while (walker.nextNode()) originals.push(walker.currentNode);
+  const cells = [];
+  for (const textNode of originals) {
+    if (!textNode.parentNode) continue;
+    const fragment = document.createDocumentFragment();
+    for (const char of textNode.nodeValue) {
+      if (/\s/.test(char)) { fragment.append(document.createTextNode(char)); continue; }
+      const span = document.createElement('span');
+      span.className = 'transition-cell';
+      span.textContent = char;
+      fragment.append(span);
+      cells.push({element:span, real:char, state:'real', order:0});
+    }
+    textNode.replaceWith(fragment);
   }
-  layer.replaceChildren(fragment);
+  layer.replaceChildren(scene);
+  // Reading positions once also handles line breaks and differing font sizes.
+  const area = layer.getBoundingClientRect();
+  const width = Math.max(1, area.width);
+  const visibleHeight = Math.max(1, layer.clientHeight);
+  for (const cell of cells) {
+    const rect = cell.element.getBoundingClientRect();
+    const x = Math.max(0, Math.min(1, (rect.x - area.x) / width));
+    const y = Math.max(0, Math.min(1, (rect.y - area.y) / visibleHeight));
+    // Diagonal sweep with the Y axis dominant, each line resolves left to right.
+    cell.order = Math.max(0, Math.min(1, y * .79 + x * .21));
+  }
+  // Rescale the visible content to span the full phase even for short lists.
+  const onScreen = cells.filter(c => c.element.getBoundingClientRect().top < area.bottom);
+  const maximum = Math.max(.18, ...onScreen.map(c => c.order));
+  for (const cell of cells) cell.order = Math.min(1, cell.order / maximum);
+  return cells;
+}
+function asciiNoise() {
+  return TRANSITION_SYMBOLS[Math.floor(Math.random() * TRANSITION_SYMBOLS.length)];
+}
+function paintCells(cells, phase, progress) {
+  const band = .085;
+  for (const cell of cells) {
+    const distance = progress - cell.order;
+    let state;
+    if (phase === 'erase') state = distance < 0 ? 'real' : distance < band ? 'scramble' : 'hidden';
+    else state = distance < 0 ? 'hidden' : distance < band ? 'scramble' : 'real';
+    if (state !== cell.state) {
+      cell.state = state;
+      cell.element.style.visibility = state === 'hidden' ? 'hidden' : 'visible';
+      if (state === 'real') cell.element.textContent = cell.real;
+    }
+    if (state === 'scramble') cell.element.textContent = asciiNoise();
+  }
+}
+function startDiagonalTransition(oldCopy, newCopy) {
+  cancelTransition();
+  const layer = $('episode-transition');
+  const region = $('content');
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   layer.classList.add('active');
-  transitionTimer=setTimeout(()=>{
+  region.classList.add('episode-switching');
+  region.setAttribute('aria-busy', 'true');
+  const oldCells = cloneTextAsCells(oldCopy, layer);
+  let nextCells = null;
+  let currentScene = 'old';
+  let started = 0;
+  let running = true;
+  function finish() {
+    running = false;
+    if (transitionFrame) cancelAnimationFrame(transitionFrame);
+    transitionFrame = 0;
     layer.classList.remove('active');
     layer.replaceChildren();
     region.classList.remove('episode-switching');
     region.removeAttribute('aria-busy');
-  }, 1330);
+  }
+  cancelTransition = finish;
+  function animate(now) {
+    if (!running) return;
+    if (!started) started = now;
+    const elapsed = now - started;
+    if (elapsed < GLITCH_ERASE_MS) {
+      paintCells(oldCells, 'erase', Math.min(1.1, elapsed / GLITCH_ERASE_MS * 1.1));
+    } else if (elapsed < GLITCH_ERASE_MS + GLITCH_EMPTY_MS) {
+      if (currentScene !== 'empty') {layer.replaceChildren();currentScene='empty';}
+    } else if (elapsed < GLITCH_ERASE_MS + GLITCH_EMPTY_MS + GLITCH_REBUILD_MS) {
+      if (currentScene !== 'new') {
+        nextCells=cloneTextAsCells(newCopy,layer);
+        for (const cell of nextCells) {cell.state='hidden';cell.element.style.visibility='hidden';}
+        currentScene='new';
+      }
+      const p=(elapsed-GLITCH_ERASE_MS-GLITCH_EMPTY_MS)/GLITCH_REBUILD_MS;
+      paintCells(nextCells, 'reveal', Math.min(1.12,p*1.12));
+    } else { finish(); return; }
+    transitionFrame=requestAnimationFrame(animate);
+  }
+  transitionFrame=requestAnimationFrame(animate);
 }
 function selectEpisode(next,navigate=false,autoplay=false){
   if(!next)return;
   const hasChanged=episode.order!==next.order;
+  const before = hasChanged ? $('content').firstElementChild.cloneNode(true) : null;
+  cancelTransition();
   audio.pause();audio.src=next.file;audio.load();episode=next;
   if(navigate)history.pushState({episode:next.order},'','/');
   try{localStorage.setItem('coding-mixes-last-episode-v4',JSON.stringify(episode.order));}catch{}
   renderEpisode();wave.setEpisode(episode.order);$('content').scrollTop=0;
-  if(hasChanged)startAsciiRain();
+  if(hasChanged)startDiagonalTransition(before, $('content').firstElementChild.cloneNode(true));
   if(autoplay)start();
 }
 function start(){
