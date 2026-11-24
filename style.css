@@ -606,3 +606,64 @@ dialog p { line-height:1.6; }
   .episode-switching #episode-links,
   .episode-switching .title {animation:none;}
 }
+
+/* v5: four thin rows of moving ASCII symbols; visible before playback too. */
+.terminal-wave {
+  height: 4.5em;
+  line-height: 1.05em;
+  font-size: .85em;
+  overflow: hidden;
+}
+.terminal-wave .wave-line {height: 1.05em;}
+.terminal-display {min-height:8em;}
+.terminal-display .progress-line {opacity:.65;}
+
+/* Independent selection/hover tracking for the archive.
+   A thin * identifies the currently loaded mix, while the solid selection
+   bar moves smoothly to hovered or focused entries, as in the reference. */
+.archive {isolation:isolate;}
+.archive .archive-cursor {
+  position:absolute;
+  top:0;
+  left:-.3ch;
+  height:var(--line);
+  width:14ch;
+  z-index:0;
+  pointer-events:none;
+  background:var(--c-green);
+  transition:transform 190ms steps(6,end),width 180ms steps(6,end);
+  will-change:transform;
+}
+.archive a {z-index:1; position:relative; color:var(--c-green); text-decoration:none;}
+.archive a em {position:relative; z-index:2;}
+.archive a.special:not(.is-highlighted) {color:var(--c-purple);}
+.archive a.is-highlighted,.archive a.is-highlighted.special {
+  color:var(--c-black);
+  background:transparent;
+  box-shadow:none;
+}
+.archive .selected {background:transparent;box-shadow:none;}
+.archive a.is-loaded::before {
+  content:'*';
+  position:absolute;
+  right:calc(100% + .65ch);
+  color:var(--c-green);
+  font-style:normal;
+  font-weight:400;
+  animation:loaded-pulse 1.7s steps(1,end) infinite;
+}
+@keyframes loaded-pulse {50%{opacity:.3;}}
+
+/* Scramble the text itself on every episode switch; no oversized ring. */
+.episode-transition {display:none !important;}
+.episode-switching .title {animation:title-reveal .45s steps(5,end) both;}
+.episode-switching #tracklist,.episode-switching #episode-links {animation:none;}
+#tracklist a {font-variant-ligatures:none;}
+@media (prefers-reduced-motion:reduce) {
+  .archive .archive-cursor {transition:none;}
+  .archive a.is-loaded::before {animation:none;}
+}
+/* Don't preserve indentation whitespace between the four display rows.
+   Preserving it creates 25px blank lines and clips three of the rows. */
+.terminal-wave {white-space:normal; height:4.25em;}
+.terminal-wave .wave-line {white-space:pre;}

@@ -18,24 +18,53 @@ let episode=fromAddress||byNumber(lastEpisode)||byNumber(70);
 // Keep one public-facing URL. Legacy /seventy/ etc. are resolved then canonicalized.
 history.replaceState({episode:episode.order},'', '/');
 const wave=createVisualizer(audio,$('terminal-wave'));
-let volume=1, eternal=false, toastTimer, transitionTimer=0;
+let volume=1, eternal=false, toastTimer, transitionTimer=0, scrambleFrame=0, hoverEpisode=null;
+const archiveItems = new Map();
+let archiveCursor=null;
 
 function notify(message){ const t=$('toast');t.textContent=message;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),3500); }
 function makeLink(label,href,className=''){
   const a=document.createElement('a'); a.textContent=label;a.href=href;a.className=className;
   if(/^https?:\/\//.test(href)){a.target='_blank';a.rel='noopener noreferrer';}return a;
 }
+function positionArchiveCursor(target, immediate=false){
+  if(!archiveCursor) return;
+  const anchor = archiveItems.get(target) || archiveItems.get(episode.order);
+  if(!anchor) return;
+  const box=$('episode-archive');
+  archiveCursor.style.transitionDuration=immediate?'0ms':'';
+  archiveCursor.style.left=`${Math.max(0,anchor.offsetLeft-2)}px`;
+  archiveCursor.style.transform=`translateY(${anchor.offsetTop}px)`;
+  archiveCursor.style.width=`${anchor.offsetWidth + 5}px`;
+  for(const [number,node] of archiveItems) node.classList.toggle('is-highlighted',number===target);
+  if(immediate) requestAnimationFrame(()=>{archiveCursor.style.transitionDuration='';});
+}
 function renderArchive(){
   const fragment=document.createDocumentFragment();
+  const box=$('episode-archive');
+  archiveItems.clear();
+  archiveCursor=document.createElement('div');
+  archiveCursor.className='archive-cursor';
+  archiveCursor.setAttribute('aria-hidden','true');
+  fragment.append(archiveCursor);
   for(const e of episodes){
     const a=makeLink(`${String(e.order).padStart(2,'0')}: ${e.title.replace(/^\d{1,2}:\s*/,'')}`,'/');
-    a.className=(e.order===62?'special ':'')+(episode.order===e.order?'selected':'');
-    if(e.order===episode.order)a.setAttribute('aria-current','page');
+    a.className=(e.order===62?'special ':'')+(episode.order===e.order?'is-loaded ':'');
+    if(e.order===episode.order)a.setAttribute('aria-current','true');
     const em=document.createElement('em');em.textContent=a.textContent;a.replaceChildren(em);
-    a.addEventListener('click',evt=>{if(evt.button||evt.metaKey||evt.ctrlKey||evt.shiftKey||evt.altKey)return;evt.preventDefault();selectEpisode(e,true);});
+    archiveItems.set(e.order,a);
+    a.addEventListener('pointerenter',()=>{hoverEpisode=e.order;positionArchiveCursor(e.order);});
+    a.addEventListener('focus',()=>{hoverEpisode=e.order;positionArchiveCursor(e.order);});
+    a.addEventListener('click',evt=>{
+      if(evt.button||evt.metaKey||evt.ctrlKey||evt.shiftKey||evt.altKey)return;
+      evt.preventDefault();hoverEpisode=e.order;selectEpisode(e,true,true);
+    });
     fragment.append(a);
   }
-  $('episode-archive').replaceChildren(fragment);
+  box.replaceChildren(fragment);
+  box.onpointerleave=()=>{hoverEpisode=null;positionArchiveCursor(episode.order);};
+  box.onfocusout=evt=>{if(!box.contains(evt.relatedTarget)){hoverEpisode=null;positionArchiveCursor(episode.order);}};
+  requestAnimationFrame(()=>positionArchiveCursor(hoverEpisode??episode.order,true));
 }
 function updatePlayback(){
   const playing=!audio.paused&&!audio.ended;
@@ -65,32 +94,48 @@ function renderEpisode(){
   renderArchive();updatePlayback();
 }
 function animateEpisodeChange(){
-  const region=$('content'), layer=$('episode-transition');
+  // The original visual effect is a text scramble, not a giant oval.
+  // Reveal each track's real characters in a different rhythmic wave.
+  const region=$('content');
+  const trackNodes=[...$('tracklist').querySelectorAll('a')];
+  if(!trackNodes.length || matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  cancelAnimationFrame(scrambleFrame);
   region.classList.remove('episode-switching');
-  layer.classList.remove('active');
-  layer.replaceChildren();
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-  // Deterministic scattering of tiny console glyphs, deliberately temporary.
-  const glyphs='~_\\/`°.*-+^;:%$!◦';
-  for(let i=0;i<118;i++){
-    const glyph=document.createElement('span');
-    glyph.className='noise '+(['yellow','orange','fuschia','green','blue'][i%5]);
-    glyph.textContent=glyphs[Math.floor(Math.abs(Math.sin(i*12.98+episode.order*5.4))*glyphs.length)%glyphs.length];
-    const x=((i*79+episode.order*19)%96);
-    const y=((i*43+i*i*7+episode.order*13)%88);
-    glyph.style.left=x+'%';glyph.style.top=y+'%';
-    glyph.style.opacity=String(.15+(i%7)*.08);
-    layer.append(glyph);
-  }
-  void layer.offsetWidth; // replay the animation even on rapid archive clicks
+  void region.offsetWidth;
   region.classList.add('episode-switching');
-  layer.classList.add('active');
-  clearTimeout(transitionTimer);
-  transitionTimer=setTimeout(()=>{layer.classList.remove('active');region.classList.remove('episode-switching');layer.replaceChildren();},850);
+  const baseline=trackNodes.map(node=>node.textContent);
+  const symbols='~°^*+_./-|\\';
+  const start=performance.now();
+  const duration=960;
+  function scramble(now){
+    const progress=Math.min(1,(now-start)/duration);
+    const beat=Math.floor(now/55);
+    trackNodes.forEach((node,row)=>{
+      const line=baseline[row];
+      const delay=Math.min(.55,row*.028);
+      const reveal=Math.max(0,Math.min(1,(progress-delay)/(1-delay)));
+      const revealed=Math.floor(reveal*line.length);
+      if(progress>=1){node.textContent=line;return;}
+      let text='';
+      for(let col=0;col<line.length;col++){
+        const ch=line[col];
+        if(ch===' ' || col<revealed) {text+=ch;continue;}
+        // Leave a few letter fragments in motion, creating the bouncing ASCII
+        // snapshots seen between episodes, without permanently hiding tracks.
+        const selector=(col*13+row*37+beat*7+episode.order)%15;
+        text+=selector<5?ch:symbols[(col*17+row*3+beat)%symbols.length];
+      }
+      node.textContent=text;
+    });
+    if(progress<1) scrambleFrame=requestAnimationFrame(scramble);
+    else region.classList.remove('episode-switching');
+  }
+  scrambleFrame=requestAnimationFrame(scramble);
 }
 function selectEpisode(next,navigate=false,autoplay=false){
   if(!next)return;
   const hasChanged=episode.order!==next.order;
+  cancelAnimationFrame(scrambleFrame);
   audio.pause();audio.src=next.file;audio.load();episode=next;
   if(navigate)history.pushState({episode:next.order},'','/');
   try{localStorage.setItem('coding-mixes-last-episode-v4',JSON.stringify(episode.order));}catch{}
@@ -98,8 +143,15 @@ function selectEpisode(next,navigate=false,autoplay=false){
   if(hasChanged)animateEpisodeChange();
   if(autoplay)start();
 }
-async function start(){try{await wave.activate();await audio.play();}catch{notify('External MP3 could not play. Try [source] or check stream availability.');}updatePlayback();}
-function stop(){audio.pause();audio.currentTime=0;updatePlayback();}
+function start(){
+  // Start both audio operations within the click gesture; awaiting AudioContext
+  // before calling play() can lose transient user activation in some browsers.
+  wave.activate().catch(()=>{});
+  const attempt=audio.play();
+  if(attempt && typeof attempt.catch==='function') attempt.catch(()=>notify('External MP3 could not play. Try [source] or check stream availability.'));
+  updatePlayback();
+}
+function stop(){audio.pause();audio.currentTime=0;updatePlayback();wave.refresh();}
 function toggle(){if(audio.paused)start();else stop();}
 function seek(diff){try{audio.currentTime=Math.max(0,Math.min(audio.duration||seconds(episode.duration),audio.currentTime+diff));}catch{}updatePlayback();}
 function step(n){selectEpisode(byNumber(((episode.order-1+n+80)%80)+1),true,true);}
