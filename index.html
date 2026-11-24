@@ -1,111 +1,63 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#171917" />
-    <meta name="description" content="A quiet place for coding. Minimal ambient listening sessions in a code-inspired audio player." />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="musicForCoding(); — uninterrupted focus" />
-    <meta property="og:description" content="Ambient sessions for long coding nights. Distraction-free, minimal, and made for focus." />
-    <title>musicForCoding(); — ambient listening for deep work</title>
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <link rel="stylesheet" href="./styles.css" />
-    <script type="module" src="./src/app.js"></script>
-  </head>
-  <body data-theme="night">
-    <a class="skip-link" href="#main">Skip to player</a>
-    <div class="app-shell">
-      <aside class="left-rail" aria-label="About and preferences">
-        <a class="wordmark" href="./" aria-label="musicForCoding home">
-          <span class="wordmark-mark">&gt;_</span>
-          <span>music<span class="mark-accent">For</span>Coding<span class="mark-accent">();</span></span>
-        </a>
-        <div class="rail-content">
-          <div class="section-marker">// Introduction</div>
-          <div class="code-intro"><span class="code-purple">function</span> <span class="code-green">musicForCoding</span><span class="code-dim">(</span><span class="code-yellow">task</span><span class="code-dim">) {</span>
-  <span class="code-purple">const</span> mood = <span class="code-orange">'focused'</span>;
-  <span class="code-purple">return</span> <span class="code-yellow">'Sound for the</span>
-         <span class="code-yellow">spaces between</span>
-         <span class="code-yellow">your thoughts.'</span>;
-<span class="code-dim">}</span></div>
-          <p class="rail-explainer">Uninterrupted ambient sessions for the long stretches of making something.</p>
-          <div class="rail-divider" aria-hidden="true"></div>
-          <div class="section-marker">// Display mode</div>
-          <div class="theme-picker" aria-label="Color theme">
-            <button type="button" data-theme-choice="night" class="theme-option active">[night]</button>
-            <button type="button" data-theme-choice="terminal" class="theme-option">[terminal]</button>
-            <button type="button" data-theme-choice="paper" class="theme-option">[paper]</button>
-          </div>
-          <div class="rail-divider" aria-hidden="true"></div>
-          <div class="section-marker">// Keyboard shortcuts</div>
-          <dl class="shortcut-list">
-            <div><dt>space</dt><dd>play / pause</dd></div>
-            <div><dt>← / →</dt><dd>seek 10 seconds</dd></div>
-            <div><dt>n / p</dt><dd>next / previous</dd></div>
-            <div><dt>f</dt><dd>favourite</dd></div>
-          </dl>
-          <div class="rail-divider" aria-hidden="true"></div>
-          <div class="rail-caption">// NO ADS. NO ACCOUNTS.<br />// JUST A LITTLE LESS NOISE.</div>
-        </div>
-        <div class="rail-bottom">
-          <div class="live-indicator"><span class="live-dot"></span><span>system ready</span></div>
-          <span class="rail-version">v.01 / 2026</span>
-        </div>
-      </aside>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#1a1a1a">
+  <meta name="description" content="A minimalist music player for concentrating while programming. Independent visual recreation of a terminal-inspired listening room.">
+  <title>musicForProgramming(); — Episode 70</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/src/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to episode</a>
+  <div class="app" id="app">
+    <aside class="column left-column" aria-label="Information and playback controls">
+      <div class="intro-code"><span class="blue">function</span> <span class="teal">musicFor</span>(<span class="orange">task</span> = <span class="yellow">'programming'</span>) { <span class="pink">return</span> <span class="purple">`A series of mixes intended for listening while </span><span class="yellow">${task}</span><span class="purple"> to focus the brain and inspire the mind.`</span>; }</div>
+      <section class="sidebar-controls" aria-label="Player controls">
+        <div class="dash-line" aria-hidden="true">-------------------------------------</div>
+        <div class="control-line"><button id="prev-episode" class="muted" title="Previous episode">[----]</button> <button id="rewind" class="muted" title="Seek back 10 seconds">[---]</button> <button id="sidebar-play" class="green" title="Play or pause">[play]</button> <button id="forward" class="muted" title="Seek forward 10 seconds">[---]</button> <button id="next-episode" class="muted" title="Next episode">[----]</button></div>
+        <div class="control-line secondary-controls"><span id="elapsed">--:--:--</span> <button class="muted" id="volume-down" title="Volume down">[--]</button> <span class="volume-dots" id="volume-indicator">....</span> <button class="muted" id="volume-up" title="Volume up">[--]</button> <button class="purple" id="random">[random]</button></div>
+      </section>
+      <nav class="utility-links" aria-label="Utilities">
+        <div><button class="blue" data-dialog="about">[about]</button> <button class="blue" data-dialog="credits">[credits]</button> <a class="blue" href="https://musicforprogramming.net/rss.xml" target="_blank" rel="noopener noreferrer">[rss.xml]</a></div>
+        <div><a class="orange" href="https://musicforprogramming.net/about/" target="_blank" rel="noopener noreferrer">[patreon]</a> <a class="orange" href="https://musicforprogramming.net/" target="_blank" rel="noopener noreferrer">[podcasts.apple]</a></div>
+        <div><a class="pink" href="https://musicforprogramming.net/img/folder.jpg" target="_blank" rel="noopener noreferrer">[folder.jpg]</a> <button class="pink" data-dialog="enterprise">[enterprise mode]</button></div>
+        <div><button class="purple" id="invert">[invert]</button> <button class="purple" id="fullscreen">[fullscreen]</button> <button class="purple" id="pip">[pip]</button></div>
+        <div class="eternal"><a class="green" href="https://musicforprogramming.net/eternal" target="_blank" rel="noopener noreferrer">[mfp.eternal]</a></div>
+      </nav>
+      <div class="site-stats muted">
+        <div>// 80 episodes</div>
+        <div>// 1392 tracks</div>
+        <div>// 97 hours</div>
+        <div>// 29 minutes</div>
+        <div>// 18 seconds</div>
+      </div>
+      <div class="cookie-line yellow">Do you know cookies are a thing?</div>
+      <p class="attribution muted">Independent visual recreation. Original reference: <a href="https://musicforprogramming.net/seventy/" target="_blank" rel="noopener noreferrer">musicforprogramming.net</a>. No music is distributed with this site.</p>
+    </aside>
 
-      <main id="main" class="main-panel">
-        <div class="main-topline"><span>// LISTENING ROOM</span><div class="topline-actions"><button type="button" id="cycle-theme" class="mobile-theme-button" aria-label="Change color theme">[theme: night]</button><span id="clock" aria-label="Current local time">--:--:--</span></div></div>
-        <section class="episode-panel" aria-labelledby="episode-heading">
-          <div class="eyebrow"><span class="eyebrow-dot"></span> <span id="episode-category">DEEP FOCUS / AMBIENT</span> <span class="eyebrow-slash">/</span> SESSION <span id="session-number">08</span></div>
-          <h1 id="episode-heading" class="episode-heading">Episode <span id="episode-number">08</span>:<br /><em id="episode-name">Nightfall Sequence</em></h1>
-          <p id="episode-description" class="episode-description">Slowly shifting harmonics and soft-edged textures for getting lost in a good problem.</p>
+    <main class="column middle-column" id="main" tabindex="-1">
+      <h1 class="episode-title">Episode <span id="episode-number">70</span>:<span class="line-break"></span><span id="episode-name">THINGS DISAPPEAR</span></h1>
+      <section class="episode-actions" aria-label="Episode controls">
+        <div><button class="green" id="main-play">[play]</button> <span class="muted" id="duration">1:03:30</span></div>
+        <div><a class="purple" id="source" href="https://datashat.net/music_for_programming_70-things_disappear.mp3" target="_blank" rel="noopener noreferrer">[source]</a> <span id="file-size" class="muted">107 MB</span></div>
+        <div><button class="yellow" id="favorite" aria-pressed="false">[favourite]</button></div>
+      </section>
+      <div id="tracklist" class="tracklist" aria-label="Episode tracklist"></div>
+      <div id="episode-links" class="episode-links"></div>
+    </main>
 
-          <div class="transport" role="group" aria-label="Audio playback controls">
-            <button type="button" class="play-button" id="play-button" aria-label="Play session"><span id="play-icon" aria-hidden="true">▶</span> <span id="play-label">play</span></button>
-            <button type="button" class="text-button" id="previous-button" aria-label="Previous session">[prev]</button>
-            <button type="button" class="text-button" id="next-button" aria-label="Next session">[next]</button>
-            <button type="button" class="text-button" id="shuffle-button" aria-label="Play random session">[random]</button>
-            <label class="volume-control" for="volume-bar"><span>vol.</span><input id="volume-bar" type="range" min="0" max="100" value="60" aria-label="Volume" /></label>
-          </div>
+    <aside class="column right-column" aria-label="Episode archive">
+      <nav id="episode-archive" aria-label="Choose an episode"></nav>
+    </aside>
+  </div>
 
-          <div class="progress-block">
-            <div class="progress-metadata"><span id="time-elapsed">00:00</span><span class="progress-description">// <span id="playback-status">waiting for input</span></span><span id="time-total">65:00</span></div>
-            <input id="seek-bar" class="seek-bar" type="range" min="0" max="3900" value="0" step="1" aria-label="Playback position" style="--seek-percent:0%" />
-          </div>
-
-          <div class="visualizer" aria-label="Sound visualizer">
-            <div class="visualizer-top"><span>signal.monitor</span><span id="signal-state">STANDBY</span></div>
-            <canvas id="frequency-canvas" width="1000" height="114" role="img" aria-label="Audio frequency visualization"></canvas>
-            <div class="visualizer-bottom"><span>20 Hz</span><span>440 Hz</span><span>20 kHz</span></div>
-          </div>
-
-          <div class="session-meta">
-            <div><span class="label-muted">FORMAT</span><span id="format-label">LIVE GENERATIVE AUDIO</span></div>
-            <div><span class="label-muted">MOOD</span><span id="mood-label">LOW LIGHT / CLEAR MIND</span></div>
-            <div class="favorite-cell"><button type="button" id="favorite-button" class="favorite-button" aria-pressed="false">[+ favourite]</button></div>
-          </div>
-
-          <section class="movements-section" aria-labelledby="movements-heading">
-            <div class="section-title-line"><h2 id="movements-heading">// Movements</h2><span id="movement-count">08 parts</span></div>
-            <ol id="movements-list" class="movements-list"></ol>
-          </section>
-          <div class="listening-note"><span class="code-green">/*</span> <span id="listening-note-text">No perfect playlist. Just somewhere to settle in and start making things.</span> <span class="code-green">*/</span></div>
-        </section>
-        <footer class="main-footer">Independent design study inspired by <a href="https://musicforprogramming.net" target="_blank" rel="noopener noreferrer">musicforprogramming.net</a>. No original audio is copied or redistributed.</footer>
-      </main>
-
-      <aside class="right-rail" aria-label="Session library">
-        <div class="library-head"><div class="section-marker">// Episode archive</div><div class="archive-counter"><span id="archive-total">18</span> sessions</div></div>
-        <label for="session-search" class="search-label">SEARCH COLLECTION</label>
-        <div class="search-wrapper"><span aria-hidden="true">&gt;</span><input id="session-search" type="search" placeholder="find a session..." autocomplete="off" /></div>
-        <div class="filter-row" role="group" aria-label="Filter sessions"><button class="filter-button active" type="button" data-filter="all">[all]</button><button class="filter-button" type="button" data-filter="favorites">[favourites]</button></div>
-        <div class="archive-heading"><span>NO.</span><span>SESSION NAME</span><span>TIME</span></div>
-        <nav aria-label="Select session"><ol id="episode-list" class="episode-list"></ol></nav>
-        <div id="empty-archive" class="empty-archive" hidden>No matching sessions.<br />Try another search.</div>
-        <div class="archive-bottom"><span class="section-marker">// End of transmission</span><p>All sounds are synthesized in your browser. Add your own licensed MP3 files to use real mixes.</p><a href="https://github.com/new" target="_blank" rel="noopener noreferrer">[make your own version]</a></div>
-      </aside>
-    </div>
-    <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  </body>
+  <dialog id="info-dialog" aria-labelledby="dialog-title">
+    <form method="dialog"><button class="close-dialog pink" aria-label="Close dialog">[close]</button></form>
+    <h2 id="dialog-title">About</h2><div id="dialog-content"></div>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
 </html>

@@ -1,64 +1,134 @@
 /**
- * Demo catalog. All entries are fictional and original, and all audio is
- * generated locally in the browser. Add a rights-cleared MP3 under public/audio
- * and set audioSrc: './audio/your-file.mp3' on an episode to stream that file.
+ * Episode names/slugs match the publicly visible archive supplied as a reference.
+ * Only Episode 70's detailed metadata was supplied for this replica.
+ * We do NOT bundle copyrighted audio recordings.
  */
-const titles = [
-  ['The Quiet Protocol', 'Focus / Minimal', 'A soft opening. Slow pulses, distant warmth, and room for a fresh idea.', 'WARM / METHODICAL'],
-  ['Memory Palace', 'Ambient / Drift', 'A field of gradually changing notes where each thought has somewhere to land.', 'AIRY / NOSTALGIC'],
-  ['Low Orbit', 'Electronic / Space', 'Faraway signals and small repeating patterns for the hours after sundown.', 'WEIGHTLESS / WIDE'],
-  ['Monochrome Skies', 'Ambient / Texture', 'Faint harmonic movements like clouds over an empty city.', 'SOFT / REFLECTIVE'],
-  ['Blank Cursor', 'Minimal / Focus', 'Spare tones and patient silence for the first line of code.', 'MINIMAL / OPEN'],
-  ['Afterimage', 'Electronic / Drift', 'An illuminated trail of gently folding melodies.', 'HAZY / MELODIC'],
-  ['Ghost in the Cache', 'Ambient / Digital', 'Tiny digital ghosts drift through a slow-moving harmonic landscape.', 'GLASSY / STILL'],
-  ['Nightfall Sequence', 'Deep Focus / Ambient', 'Slowly shifting harmonics and soft-edged textures for getting lost in a good problem.', 'LOW LIGHT / CLEAR MIND'],
-  ['A Small Infinity', 'Ambient / Slow', 'Nearly motionless atmospheres with a quiet current underneath.', 'TIMELESS / WARM'],
-  ['Soft Reset', 'Minimal / Electronic', 'A reset for the senses, built from restrained tones and distant echoes.', 'CLEAN / GENTLE'],
-  ['Parallel Dreams', 'Dream / Electronic', 'Lightly interwoven signals, finding and losing each other.', 'DREAMY / CURIOUS'],
-  ['Subtle Machines', 'Focus / Analog', 'Analog-inspired hums and reassuringly human imperfections.', 'TAPE / WARM'],
-  ['Warm Data', 'Ambient / Texture', 'Slow, luminous chords in a room full of quiet equipment.', 'LUMINOUS / CALM'],
-  ['Moonlit Terminal', 'Night / Focus', 'A companion for the one last thing you promised yourself you would finish.', 'NIGHT / PATIENT'],
-  ['Still Processing', 'Slow / Drone', 'A gentle hum for hard problems and the wait between breakthroughs.', 'LOW / IMMERSIVE'],
-  ['Blue Hour', 'Ambient / Melodic', 'Melodies fade into the moment before everything becomes night.', 'DUSK / FLOATING'],
-  ['Gentle Syntax', 'Focus / Minimal', 'Small repeating phrases and spacious harmonics that never get in the way.', 'STRUCTURED / QUIET'],
-  ['The Long Compile', 'Drone / Generative', 'Extended tones for keeping good company with unfinished work.', 'DEEP / STEADY']
+const archiveText = `
+80|eighty|Nicolas Tilly
+79|seventynine|Corticyte
+78|seventyeight|Datassette
+77|seventyseven|Phonaut
+76|seventysix|Material Object
+75|seventyfive|Datassette
+74|seventyfour|NCW
+73|seventythree|[in]anace
+72|seventytwo|Freddy Cyclone
+71|seventyone|Neon Genesis
+70|seventy|THINGS DISAPPEAR
+69|sixtynine|Pearl River Sound
+68|sixtyeight|no data available
+67|sixtyseven|Datassette
+66|sixtysix|Conrad Clipper
+65|sixtyfive|Matt Whitehead
+64|sixtyfour|Strepsil
+63|sixtythree|T-FLX
+62|sixtytwo|Our Grey Lives
+61|sixtyone|Linnley
+60|sixty|TUNDRA
+59|fiftynine|Miunau
+58|fiftyeight|OliSUn
+57|fiftyseven|Hainbach
+56|fiftysix|Forest Drive West
+55|fiftyfive|20 Jazz Funk Greats
+54|fiftyfour|HLER
+53|fiftythree|Beb Welten
+52|fiftytwo|Inchindown
+51|fiftyone|Mücha
+50|fifty|Misc.
+49|fortynine|Julien Mier
+48|fortyeight|Michael Hicks
+47|fortyseven|Abe Mangger
+46|fortysix|Jo Johnson
+45|fortyfive|Ehohroma
+44|fortyfour|hukka
+43|fortythree|Hey Exit
+42|fortytwo|Datassette
+41|fortyone|Sunjammer
+40|forty|Mark Schneider
+39|thirtynine|Kidding Kurrys
+38|thirtyeight|J.S. Aurelius
+37|thirtyseven|Lackluster
+36|thirtysix|Ea7_dmZ
+35|thirtyfive|Nadim Kobeissi
+34|thirtyfour|Chukus
+33|thirtythree|uuav
+32|thirtytwo|Chris Seddon
+31|thirtyone|Datassette
+30|thirty|Matt Kruse
+29|twentynine|Luke Handsfree
+28|twentyeight|Big War
+27|twentyseven|Michael Hicks
+26|twentysix|Abstraction
+25|twentyfive|_nono_
+24|twentyfour|RITES
+23|twentythree|Panda Magic
+22|twentytwo|Mindaugaszq
+21|twentyone|Idol Eyes
+20|twenty|Uberdog
+19|nineteen|Hivemind
+18|eighteen|Konx Om Pax
+17|seventeen|Graphplan
+16|sixteen|Silent Stelios
+15|fifteen|Dan Adeyemi
+14|fourteen|Tahlhoff Garten + Untitled
+13|thirteen|Matt Whitehead
+12|twelve|Forgotten Light
+11|eleven|Miles Tilmann
+10|ten|Unity Gain Temple
+9|nine|Datassette
+8|eight|Connectedness Locus
+7|seven|Tahlhoff Garten + Untitled
+6|six|Gods Of The New Age
+5|five|Abe Mangger
+4|four|Com Truise
+3|three|Datassette
+2|two|Sunjammer
+1|one|Datassette
+`;
+
+const episode70Tracks = [
+  'Phoenix G - Soundbath@TheLoft',
+  'Bedouin Ascent - Joyriding III',
+  'Global Communication - Enlightenment From The Augur',
+  'The Grid - Without Your Clarity I Would Still Be Bound By Gravity (Boundless Mix)',
+  'Laraaji - Moon Shadows',
+  'Interior - Ascending',
+  'Aphex Twin - bank lullaby',
+  'AshTreJinkins - no team effort',
+  'Sam Gendel - ZeroZero',
+  'Panoram - Ray Rain',
+  'Harold Budd and Cocteau Twins - Memory Gongs',
+  'John Livengood - Véhicule',
+  'KMRU - strain',
+  'Sébastien Robert - Imaginary Geography',
+  'Gigi Masin & Allesandro Monti - O.A.L.',
+  'Terre Thaemlitz - Aging Core, Aging Periphery',
+  'AFX - s8v1 [brooklyn]',
+  'Oneohtrix Point Never - Behind The Bank',
+  'Fred Wackenhut - Orianna Twilight'
 ];
 
-const movementNames = [
-  ['Initial Conditions','Distant Lights','A Gentle Pattern','Ambient Memory','Low Frequency','Between the Lines','Slow Return','Open Circuit'],
-  ['Morning Residue','Soft Geometry','Thin Air','Bloom State','Quiet Motor','Drifting North','Warm Interference','Final Light'],
-  ['Subliminal Signal','Paper Satellites','Night Windows','Past the Edge','Small Oscillations','Absent Coordinates','Ground Control','Home Again'],
-  ['Cloud Cover','Silent Avenue','Moon Dust','A Familiar Place','Static and Light','Unfolding','Still Here','Falling Slowly']
-];
-
-export const episodes = titles.map(([title, category, description, mood], i) => {
-  const number = i + 1;
-  const durations = [53, 67, 59, 61, 46, 68, 62, 65, 72, 51, 63, 57, 70, 64, 60, 54, 66, 74];
-  const duration = durations[i] * 60 + (i * 13 % 53);
-  const movements = movementNames[i % movementNames.length].map((name, j) => ({
-    title: name,
-    artist: ['a room in motion', 'soft signals', 'the other side', 'sleep cycles'][i % 4],
-    at: Math.round((j / 8) * duration)
-  }));
+export const episodes = archiveText.trim().split('\n').map(line => {
+  const [number, slug, title] = line.split('|');
+  const id = Number(number);
   return {
-    id: number,
-    title,
-    category,
-    description,
-    mood,
-    duration,
-    movements,
-    root: [38, 42, 40, 45, 36, 43, 39, 41, 35, 40, 44, 37, 42, 38, 34, 43, 41, 36][i],
-    seed: 11 + 37 * number,
-    audioSrc: null // Set this to './audio/your-licensed-mix.mp3' for real MP3 playback.
+    id, slug, title,
+    duration: id === 70 ? 3810 : 3600,
+    size: id === 70 ? '107 MB' : null,
+    tracks: id === 70 ? episode70Tracks : [],
+    // The original website hosts this URL; we only link to it, never bundle it.
+    // Confirm you have permission for third-party streaming before public use.
+    audioSrc: id === 70 ? 'https://datashat.net/music_for_programming_70-things_disappear.mp3' : null,
+    root: [36, 38, 40, 41, 43, 45][id % 6],
+    seed: id * 181 + 17
   };
 });
 
-export const padNumber = n => String(n).padStart(2, '0');
-export function formatTime(seconds) {
-  const t = Math.max(0, Math.floor(Number(seconds) || 0));
-  const hours = Math.floor(t / 3600);
-  const minutes = Math.floor((t % 3600) / 60);
-  const secs = t % 60;
-  return hours ? `${hours}:${String(minutes).padStart(2,'0')}:${String(secs).padStart(2,'0')}` : `${String(minutes).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-}
+export const episodeBySlug = slug => episodes.find(ep => ep.slug === slug);
+export const episodeById = id => episodes.find(ep => ep.id === id);
+export const two = n => String(n).padStart(2,'0');
+export const clockTime = value => {
+  const sec = Math.max(0,Math.floor(Number(value) || 0));
+  return [Math.floor(sec / 3600),Math.floor((sec % 3600) / 60),sec % 60]
+    .map(n=>String(n).padStart(2,'0')).join(':');
+};

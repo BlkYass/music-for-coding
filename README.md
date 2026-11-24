@@ -1,81 +1,47 @@
-# musicForCoding();
+# musicForProgramming(); — text-terminal visual recreation
 
-A responsive, original frontend **inspired by** the minimal, programmer-friendly interface at [musicforprogramming.net](https://musicforprogramming.net/). It has a working browser-based ambient sound engine — no music downloads, backend, API keys, accounts, or subscriptions required.
+A static, dependency-free, responsive visual recreation of the public Episode 70 layout at https://musicforprogramming.net/seventy/. Built for the `BlkYass/music-for-coding` GitHub repository and Vercel static hosting.
 
-This is an **independent demo** and is **not affiliated with musicforprogramming.net**. Its sessions and audio are original and do not reproduce the site's recordings or original branded content.
+## What's included
 
-## Features
+- The same overall **three-column, text-only presentation** as the reference screenshot (no cards, borders, dashboard elements, or spectrum visualizer).
+- 80 archive **labels** from the user-provided HTML source and Episode 70's full user-provided **tracklist and metadata**.
+- Functional playback, time counter, rewind/forward, volume, random, favourites, invert, and keyboard shortcuts.
+- The Episode 70 MP3 is referenced via the original third-party `datashat.net` URL **supplied by the user**; no MP3s are copied, downloaded, or redistributed. Public streaming requires authorization from the owner. If the remote service does not allow streaming, replace this URL with a licensed file you host.
+- Other episodes use a clearly identified **original generative audio demo** rather than misrepresenting or copying their actual recordings and tracklists.
+- Responsive two-column/mobile layouts and standard keyboard navigation.
 
-- Desktop three-column layout and responsive mobile player
-- Minimalist terminal aesthetics with three color themes
-- 18 fictional sessions with original generative ambient audio
-- Play/pause, next/previous, random, volume, progress seek, and timed session transitions
-- Interactive movement list and canvas visualizer
-- Search, favourites, and persistent local settings
-- Keyboard controls (`space`, left/right arrows, `n`, `p`, `f`)
-- URLs such as `?episode=08` link to a selected session
-- Accessible focus states, reduced-motion awareness, semantic labels
-- Plain HTML, CSS, and JavaScript: no framework, no build, no hosting costs for the code
+**Accuracy:** This is a close visual reproduction, not the actual original website or its production code. Font rendering, line wrapping, and original site's extra controls can differ by browser/screen size.
 
 ## Run locally
 
-Python 3 is enough:
+Open `index.html` from a local web server (ES modules need HTTP), e.g. with Python:
 
-```bash
-cd focus-terminal-music
-python3 -m http.server 8000
+```powershell
+cd "C:\test_perso\music-for-coding\music-for-coding-website\focus-terminal-music"
+python -m http.server 8000
 ```
 
-Open <http://localhost:8000>. No `npm install` necessary. Modern Chrome, Edge, Firefox and Safari are supported; audio begins after you press **play** due to browser autoplay policies.
+Then browse to http://localhost:8000/. The `/seventy/` deep-link works on Vercel through the included rewrite rule; the plain Python server only serves `/`.
 
-## Upload to your GitHub repository
+## Replace the existing repository on Windows (Git Bash)
 
-**For a new empty repository**, create it at <https://github.com/new> (do not initialize it with another README), then run inside this directory:
+After extracting this ZIP into `~/Downloads/music-for-coding-v2`:
 
 ```bash
-git init
-git add .
-git commit -m "Build minimal ambient music player"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-git push -u origin main
+cd /c/test_perso/music-for-coding/music-for-coding-website/focus-terminal-music
+cp -r "$HOME/Downloads/music-for-coding-v2/focus-terminal-music/"* .
+git add -A
+git commit -m "Rebuild music player to match reference layout"
+git push origin main
 ```
 
-GitHub will ask you to authenticate using your normal sign-in or Git credential manager. Never put personal access tokens into source files or chat messages.
+If the extracted files are at a different path, adjust the `cp` source. Make sure you copy into the directory **containing the repo's `index.html`**, not a nested duplicate folder.
 
-**For an existing repository containing code**, clone it first and integrate these files in a branch rather than force-pushing over existing work.
+## Vercel
 
-## Deploy for $0 on Vercel
+Your project is already linked to the GitHub repository; pushing to `main` starts automatic deployment. No `vercel login`, framework, environment variables, or build step is needed. Vercel preset: Other. Root directory: folder containing `index.html`.
 
-1. Sign in at <https://vercel.com/> and choose **Add New → Project**.
-2. Connect GitHub and import your repository.
-3. Framework preset: **Other**. Leave the root directory as `./` and build command empty; no framework build is required.
-4. Deploy. You'll receive an HTTPS `*.vercel.app` URL.
-5. Every new push to the connected GitHub branch will trigger a fresh deployment.
+## Notes
 
-The Vercel **Hobby** plan is designed for personal, noncommercial projects. Follow the current usage limits at <https://vercel.com/docs/plans/hobby>.
-
-## AWS option
-
-This is also a static site and can be hosted through AWS Amplify Hosting or S3/CloudFront. AWS fees and free-tier eligibility vary by account and service; verify the applicable offers before deployment and set billing safeguards. Vercel is simpler for this project.
-
-## Add your own real music files
-
-The included generative sound needs no external assets. To use licensed MP3 recordings instead:
-
-1. Make an `audio/` directory at the project root.
-2. Add music you own or have explicit permission to distribute and stream, for example `audio/ambient-01.mp3`.
-3. In `src/data.js`, set the session's `audioSrc` to `'./audio/ambient-01.mp3'`.
-4. Update the session title, duration, description, movement metadata and credits.
-
-**Important:** Do not copy/hotlink third-party mixes without permission. Audio files can be large and may exceed free-hosting traffic/asset limits. For a large licensed catalog, use a suitable external audio/CDN provider instead of committing big MP3 files to GitHub.
-
-## Customize
-
-- Session metadata: `src/data.js`
-- Playback/synthesis engine: `src/audio.js`
-- App behavior: `src/app.js`
-- Colors and layout: `styles.css`
-- Page markup: `index.html`
-
-All code here was authored for this demo; the Google Fonts IBM Plex Mono font is loaded from the Google Fonts service and has a local monospace fallback.
+This is an independently built visual recreation. The original site's music, distinctive branding and archive belong to their respective owners. Don't misrepresent the replica as the original site or redistribute music without permission.
