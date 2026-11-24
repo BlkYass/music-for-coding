@@ -1,99 +1,113 @@
-/* Animated four-color ASCII waveform.
- * Streams from the supplied original MP3 host are expected to allow CORS,
- * as the reference app plays them through an AudioContext AnalyserNode.
- * Visual motion remains available when analyzable samples are absent.
+/**
+ * Four-row ASCII signal. Uses actual frequency bins when the current MP3
+ * allows cross-origin analysis; otherwise uses a continuous mathematical
+ * motion pattern while audio is playing. Decorative glyphs never claim to
+ * be measured sound when the input isn't available.
  */
 export function createVisualizer(audio, element) {
   const rows = [...element.querySelectorAll('[data-wave]')];
-  const WIDTH = 35;
-  const CHARS = ['_', '.', '·', '-', '~', '^', '*', '°', '¨', "'", '`'];
-  const NBSP = '\u00a0';
-  const smoothed = new Float32Array(WIDTH);
+  const WIDTH = 34;
+  const HEIGHT = rows.length;
+  const SYMBOLS = ['_', '.', '·', '-', '~', '^', '*', '°', '\'', '"', '`'];
+  const EMPTY = '\u00a0';
+  const smooth = new Float32Array(WIDTH);
   let episode = 70;
-  let raf = 0;
-  let lastDraw = 0;
-  let audioContext = null;
+  let animationId = 0;
+  let lastPaint = 0;
+  let ctx = null;
   let analyser = null;
-  let frequency = null;
-  let sourceMade = false;
+  let bins = null;
+  let origin = null;
 
-  // Required to analyze the external MP3s. The remote host must grant CORS.
+  // Analyser requires CORS permission from remote audio hosts.
   audio.crossOrigin = 'anonymous';
+
   async function activate() {
-    if (audioContext) {
-      try { await audioContext.resume(); } catch {}
+    if (ctx) {
+      try { await ctx.resume(); } catch {}
       return Boolean(analyser);
     }
-    if (!audio.currentSrc) return false;
-    const Context = window.AudioContext || window.webkitAudioContext;
-    if (!Context) return false;
+    if (!audio.currentSrc && !audio.src) return false;
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContextCtor) return false;
     try {
-      audioContext = new Context();
-      if (!sourceMade) {
-        const source = audioContext.createMediaElementSource(audio);
-        sourceMade = true;
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-        analyser.smoothingTimeConstant = .72;
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
-        frequency = new Uint8Array(analyser.frequencyBinCount);
-      }
-      await audioContext.resume();
+      ctx = new AudioContextCtor();
+      origin = ctx.createMediaElementSource(audio);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      analyser.smoothingTimeConstant = 0.73;
+      origin.connect(analyser);
+      analyser.connect(ctx.destination);
+      bins = new Uint8Array(analyser.frequencyBinCount);
+      await ctx.resume();
       return true;
-    } catch { return false; }
+    } catch {
+      return false;
+    }
   }
 
   function draw(now) {
     const playing = !audio.paused && !audio.ended;
-    const phase = playing ? now * .001 : episode * .17;
-    let hasSignal = false;
-    if (playing && analyser && frequency) {
-      analyser.getByteFrequencyData(frequency);
-      hasSignal = frequency.some(value => value > 3);
+    const time = playing ? now / 1000 : episode * 0.053;
+    let measured = false;
+    if (playing && analyser && bins) {
+      analyser.getByteFrequencyData(bins);
+      measured = bins.some(v => v > 3);
     }
-    element.dataset.signal = !playing ? 'idle' : hasSignal ? 'frequency' : 'visual';
+    element.dataset.signal = playing ? (measured ? 'frequency' : 'motion') : 'idle';
     element.classList.toggle('is-playing', playing);
-    const lines = Array.from({ length: 4 }, () => Array(WIDTH).fill(NBSP));
+    const field = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(EMPTY));
+    const pulse = 0.25 * Math.sin(time * 2.1 + episode * 0.7);
 
     for (let x = 0; x < WIDTH; x++) {
-      const u = x / (WIDTH - 1);
-      const center = Math.sin(2.5 * Math.PI * u - phase * 1.65 + episode * .38);
-      const slow = Math.sin(6.4 * Math.PI * u + phase * 1.12 + episode * .2);
-      const ripples = Math.cos(11 * Math.PI * u - phase * 2.1);
-      let amplitude;
-      if (hasSignal) {
-        // Logarithmic sample positions preserve bass activity while retaining
-        // the middle/high frequency texture visible in the ASCII display.
-        const bin = Math.min(frequency.length - 1, Math.round(2 * Math.pow(1 + u * 17, 1.45)));
-        const volume = Math.max(0, (frequency[bin] - 34) / 186);
-        smoothed[x] += (volume - smoothed[x]) * .26;
-        amplitude = smoothed[x];
+      const t = x / (WIDTH - 1);
+      const drift = Math.sin((t * 2.85 - time * 0.62) * Math.PI + episode * .44);
+      const fine = .38 * Math.sin(t * 19.5 + time * 1.4);
+      const waveShape = .51 + .38 * drift + .24 * fine + pulse * .28;
+      let strength;
+      if (measured) {
+        const bin = Math.min(bins.length - 1, Math.round(Math.pow(1 + t * 22, 1.40) * 2));
+        const value = Math.min(1, Math.max(0, (bins[bin] - 24) / 200));
+        smooth[x] += (value - smooth[x]) * 0.24;
+        strength = .72 * waveShape + .38 * smooth[x];
       } else {
-        // This is a visualization, not a fake frequency measurement.
-        // It remains visible when idle and flows when audio plays.
-        amplitude = .5 + .31 * center + .13 * slow + .06 * ripples;
+        strength = waveShape;
       }
-      const height = Math.max(0, Math.min(3, Math.round((1 - amplitude) * 3)));
-      const wiggle = Math.abs(Math.sin(x * .8 + phase * 1.2));
-      const charIndex = Math.min(CHARS.length - 1, Math.floor(wiggle * CHARS.length));
-      lines[height][x] = CHARS[charIndex];
-      // Add occasional thin neighbors so the curve reads as continuous text.
-      if (x > 0 && lines[height][x - 1] === NBSP) lines[height][x - 1] = '·';
+      // Curved / stepped trail, never a horizontal progress line.
+      const height = Math.max(0, Math.min(HEIGHT - 1, Math.round((1 - Math.max(0, Math.min(1, strength))) * (HEIGHT - 1))));
+      const index = Math.abs(Math.round((Math.sin(x * .71 - time * 3.1) * 6 + x * .31 + episode) * 5));
+      field[height][x] = SYMBOLS[index % SYMBOLS.length];
+
+      // Multiple rows of sparse glyphs make this look like ASCII particles,
+      // not a flat equalizer trace or a conventional bar chart.
+      const shimmer = (Math.sin(x * 1.57 + time * 2.8 + episode) + 1) / 2;
+      if (playing && shimmer > .68) {
+        const neighbor = Math.max(0, Math.min(HEIGHT - 1, height + (x % 2 ? -1 : 1)));
+        if (neighbor !== height) field[neighbor][x] = SYMBOLS[(index + 4) % SYMBOLS.length];
+      }
+      if (playing && measured && smooth[x] > .7 && height + 1 < HEIGHT) {
+        field[height + 1][x] = '.';
+      }
     }
-    rows.forEach((row, i) => row.textContent = lines[i].join(''));
+
+    rows.forEach((row, idx) => { row.textContent = field[idx].join(''); });
   }
 
-  function tick(now) {
-    raf = requestAnimationFrame(tick);
-    if (now - lastDraw < 52) return;
-    lastDraw = now;
+  function frame(now) {
+    animationId = requestAnimationFrame(frame);
+    if (now - lastPaint < 42) return;
+    lastPaint = now;
     draw(now);
   }
-  const refresh = () => draw(performance.now());
-  function setEpisode(n) { episode = n; smoothed.fill(0); refresh(); }
-  ['play', 'playing', 'pause', 'ended', 'waiting', 'seeked'].forEach(event => audio.addEventListener(event, refresh));
-  raf = requestAnimationFrame(tick);
+  function refresh() { draw(performance.now()); }
+  function setEpisode(number) { episode = number; smooth.fill(0); refresh(); }
+  for (const event of ['play', 'playing', 'pause', 'ended', 'seeked', 'waiting']) {
+    audio.addEventListener(event, refresh);
+  }
+  animationId = requestAnimationFrame(frame);
   draw(0);
-  return { activate, refresh, setEpisode, dispose() { cancelAnimationFrame(raf); if(audioContext) audioContext.close(); } };
+  return {
+    activate, refresh, setEpisode,
+    dispose() { cancelAnimationFrame(animationId); if (ctx) ctx.close(); }
+  };
 }

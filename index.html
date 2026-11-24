@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#1a1a1a">
   <meta name="description" content="An independent text-only listening room for long programming mixes with animated ASCII music signals.">
-  <title>musicForProgramming();</title>
+  <title>musicForCoding();</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,8 +21,8 @@
         <section class="full md:half lg:quarter lg:screen-v-scroll flex row wrap" aria-label="Player and controls">
           <header class="full noselect pt">
             <div class="pad break-anywhere pr-1 pb-0">
-              <div class="md:hidden"><span class="green"><em>musicForProgramming</em></span>();</div>
-              <div class="hidden md:inline"><em class="blue">function</em> <span class="green">musicFor</span>(<em class="orange">task</em> = <span class="yellow">'programming'</span>) { <span class="fuschia">return</span> <span class="purple">`A series of mixes intended for listening while </span><span class="yellow">${</span>task<span class="yellow">}</span><span class="purple"> to focus the brain and inspire the mind.`</span>; }</div>
+              <div class="md:hidden"><span class="green"><em>musicForCoding</em></span>();</div>
+              <div class="hidden md:inline"><em class="blue">function</em> <span class="green">musicForCoding</span>(<em class="orange">task</em> = <span class="yellow">'coding'</span>) { <span class="fuschia">return</span> <span class="purple">`Music for Coding: soundtracks for </span><span class="yellow">${</span>task<span class="yellow">}</span><span class="purple"> to help you focus and stay in flow.`</span>; }</div>
               <br class="hidden md:inline"><br class="hidden md:inline">
             </div>
           </header>
@@ -35,7 +35,6 @@
                   <span class="wave-line yellow" data-wave="2"> </span>
                   <span class="wave-line green" data-wave="3"> </span>
                 </div>
-                <div class="progress-line" id="ascii-progress" aria-hidden="true">──────────────────────────────────</div>
                 <span class="now-label grey" id="now-playing">• Episode 70: THINGS DISAPPEAR</span>
               </div>
               <div class="controls-row"><button class="green hover" id="previous" title="Previous episode">[prev]</button> <button class="green hover" id="rewind" title="Go back 30 seconds">[-30]</button> <button class="green hover" id="sidebar-play" title="Play or stop">[play]</button> <button class="green hover" id="forward" title="Go forward 30 seconds">[+30]</button> <button class="green hover" id="next" title="Next episode">[next]</button></div>
@@ -49,7 +48,7 @@
               <button class="orange hover" data-modal="own-links">[patreon]</button> <button class="orange hover" data-modal="own-links">[podcasts.apple]</button><br>
               <button class="fuschia hover" data-modal="folder">[folder.jpg]</button> <button class="fuschia hover" id="enterprise">[enterprise mode]</button><br>
               <button class="purple hover" id="invert">[invert]</button> <button class="purple hover" id="fullscreen">[fullscreen]</button> <button class="purple hover" id="pip">[pip]</button><br><br>
-              <button class="green hover" id="eternal">[mfp.eternal]</button> <span class="grey blink">*** new ***</span>
+              <button class="green hover" id="eternal">[coding.eternal]</button> <span class="grey blink">*** new ***</span>
               <div class="stats grey"><br><br><span id="stat-episodes">// 80 episodes</span><br><span id="stat-tracks">// 1392 tracks</span><br><span id="stat-hours">// 97 hours</span><br><span id="stat-minutes">// 29 minutes</span><br><span id="stat-seconds">// 18 seconds</span></div>
               <br><br><div class="cookie-notice" id="cookie-notice"><span class="yellow">Do you know cookies are a thing?</span><br><button id="cookie-dismiss" class="yellow hover">[yes I'm aware]</button></div>
               <div class="y-space"></div>

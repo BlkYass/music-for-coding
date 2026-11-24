@@ -40,6 +40,16 @@ function positionArchiveCursor(target, immediate=false){
   if(immediate) requestAnimationFrame(()=>{archiveCursor.style.transitionDuration='';});
 }
 function renderArchive(){
+  if (archiveItems.size) {
+    for (const [number, anchor] of archiveItems) {
+      anchor.classList.toggle('is-loaded', number === episode.order);
+      if (number === episode.order) anchor.setAttribute('aria-current', 'true');
+      else anchor.removeAttribute('aria-current');
+    }
+    // Existing element stays mounted so the green cursor actually travels.
+    requestAnimationFrame(() => positionArchiveCursor(hoverEpisode ?? episode.order));
+    return;
+  }
   const fragment=document.createDocumentFragment();
   const box=$('episode-archive');
   archiveItems.clear();
@@ -70,9 +80,7 @@ function updatePlayback(){
   const playing=!audio.paused&&!audio.ended;
   $('sidebar-play').textContent=playing?'[stop]':'[play]';$('main-play').textContent=playing?'[stop]':'[play]';
   $('elapsed').textContent=fmtTime(audio.currentTime);$('volume-status').textContent=Math.round(audio.volume*100)+'%';
-  const progress=Math.min(1,(audio.currentTime||0)/(audio.duration||seconds(episode.duration)));
-  const marks=Math.min(34,Math.max(0,Math.round(progress*34)));
-  $('ascii-progress').textContent='─'.repeat(marks)+'·'+'─'.repeat(34-marks);
+  document.body.classList.toggle('audio-playing', playing);
 }
 function renderEpisode(){
   $('episode-number').textContent=episode.order;
@@ -82,55 +90,104 @@ function renderEpisode(){
   $('now-playing').textContent=`• Episode ${episode.order}: ${episode.title.replace(/^\d{1,2}:\s*/,'')}`;
   $('favourite').textContent=favorites.has(episode.order)?'[forget]':'[favourite]';
   $('favourite').setAttribute('aria-pressed',String(favorites.has(episode.order)));
-  document.title=`Episode ${episode.order}: ${episode.title.replace(/^\d{1,2}:\s*/,'')} · musicForProgramming();`;
+  document.title=`Episode ${episode.order}: ${episode.title.replace(/^\d{1,2}:\s*/,'')} · musicForCoding();`;
   const tracks=document.createDocumentFragment();
   for(const name of episode.tracklist){
     tracks.append(makeLink(name,`https://www.google.com/search?q=${encodeURIComponent('site:discogs.com '+name)}`,'subtle-hover'),document.createElement('br'));
   }
-  $('tracklist').replaceChildren(tracks);
+  $('tracklist').replaceChildren(tracks, makeBouncingSymbols());
   const links=document.createDocumentFragment();
   for(const link of episode.links){if(/^https?:\/\//.test(link.href))links.append(makeLink(link.label||link.href,link.href,'blue'),document.createElement('br'));}
   $('episode-links').replaceChildren(links);
   renderArchive();updatePlayback();
 }
+// Lightweight, decorative audio glyphs. They sit above the track names without
+// changing the real text, its wrapping, or the links, and move only while playing.
+function makeBouncingSymbols(){
+  const field=document.createElement('div');
+  field.className='bouncing-glyphs';
+  field.setAttribute('aria-hidden','true');
+  const alphabet=['*','"',"'",'^','_'];
+  for(let i=0;i<22;i++){
+    const char=document.createElement('span');
+    char.className='bouncing-glyph';
+    char.textContent=alphabet[(i*7+episode.order)%alphabet.length];
+    const x=(i*37+episode.order*13)%92+3;
+    const y=(i*29+episode.order*7)%90+3;
+    char.style.left=`${x}%`;
+    char.style.top=`${y}%`;
+    char.style.animationDelay=`${-(i*0.29)%3.6}s`;
+    char.style.animationDuration=`${1.5+(i%7)*0.29}s`;
+    field.append(char);
+  }
+  return field;
+}
+
+// Scatter falling characters over the episode details while the next mix
+// appears. Completely separate from (and pointer-transparent to) real links.
+function startAsciiRain(){
+  const layer=$('episode-transition');
+  clearTimeout(transitionTimer);
+  const symbols=['*','"',"'",'^','_','°','·','~'];
+  const fragment=document.createDocumentFragment();
+  for(let i=0;i<86;i++){
+    const drop=document.createElement('span');
+    drop.className='ascii-raindrop';
+    drop.textContent=symbols[(i*11+episode.order)%symbols.length];
+    const x=(i*53+episode.order*7)%99;
+    drop.style.left=`${x}%`;
+    drop.style.top=`${-10-(i*19)%38}%`;
+    drop.style.animationDelay=`${(i*17%53)/100}s`;
+    drop.style.animationDuration=`${1.02+(i%9)*0.071}s`;
+    drop.style.setProperty('--fall', `${210+(i*29)%420}px`);
+    drop.style.color=`var(--c-${['purple','blue','green','yellow','fuschia'][i%5]})`;
+    fragment.append(drop);
+  }
+  layer.replaceChildren(fragment);
+  layer.classList.remove('active');
+  void layer.offsetWidth;
+  layer.classList.add('active');
+  transitionTimer=setTimeout(()=>{layer.classList.remove('active');layer.replaceChildren();},1750);
+}
 function animateEpisodeChange(){
-  // The original visual effect is a text scramble, not a giant oval.
-  // Reveal each track's real characters in a different rhythmic wave.
   const region=$('content');
-  const trackNodes=[...$('tracklist').querySelectorAll('a')];
-  if(!trackNodes.length || matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+  const nodes=[...$('tracklist').querySelectorAll('a')];
+  if(!nodes.length || matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   cancelAnimationFrame(scrambleFrame);
   region.classList.remove('episode-switching');
   void region.offsetWidth;
   region.classList.add('episode-switching');
-  const baseline=trackNodes.map(node=>node.textContent);
-  const symbols='~°^*+_./-|\\';
+  startAsciiRain();
+  const original=nodes.map(node=>node.textContent);
+  const symbols=['*','"',"'",'^','_','.',':','~'];
   const start=performance.now();
-  const duration=960;
-  function scramble(now){
-    const progress=Math.min(1,(now-start)/duration);
-    const beat=Math.floor(now/55);
-    trackNodes.forEach((node,row)=>{
-      const line=baseline[row];
-      const delay=Math.min(.55,row*.028);
-      const reveal=Math.max(0,Math.min(1,(progress-delay)/(1-delay)));
-      const revealed=Math.floor(reveal*line.length);
-      if(progress>=1){node.textContent=line;return;}
+  const duration=1350;
+  function drop(now){
+    const t=Math.min(1,(now-start)/duration);
+    // This narrow band progresses row by row, TOP -> BOTTOM like rainfall.
+    const front=t*(nodes.length+7);
+    const cycle=Math.floor(now/48);
+    nodes.forEach((node,row)=>{
+      const distance=front-row;
+      const baseline=original[row];
+      if(distance<0||distance>7||t>=1){node.textContent=baseline;return;}
       let text='';
-      for(let col=0;col<line.length;col++){
-        const ch=line[col];
-        if(ch===' ' || col<revealed) {text+=ch;continue;}
-        // Leave a few letter fragments in motion, creating the bouncing ASCII
-        // snapshots seen between episodes, without permanently hiding tracks.
-        const selector=(col*13+row*37+beat*7+episode.order)%15;
-        text+=selector<5?ch:symbols[(col*17+row*3+beat)%symbols.length];
+      const intensity=Math.sin(Math.PI*Math.min(1,distance/7));
+      for(let col=0;col<baseline.length;col++){
+        const ch=baseline[col];
+        if(ch===' '){text+=' ';continue;}
+        const jitter=(col*19+row*31+cycle*11+episode.order)%100;
+        text+=jitter < intensity*70 ? symbols[(col+row*3+cycle)%symbols.length] : ch;
       }
       node.textContent=text;
     });
-    if(progress<1) scrambleFrame=requestAnimationFrame(scramble);
-    else region.classList.remove('episode-switching');
+    if(t<1) scrambleFrame=requestAnimationFrame(drop);
+    else {
+      nodes.forEach((node,i)=>{node.textContent=original[i];});
+      region.classList.remove('episode-switching');
+    }
   }
-  scrambleFrame=requestAnimationFrame(scramble);
+  scrambleFrame=requestAnimationFrame(drop);
 }
 function selectEpisode(next,navigate=false,autoplay=false){
   if(!next)return;
@@ -167,7 +224,7 @@ $('favourite').addEventListener('click',toggleFavorite);
 $('invert').addEventListener('click',()=>document.body.classList.toggle('invert'));
 $('fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.documentElement.requestFullscreen();}catch{notify('Fullscreen is unavailable.');}});
 $('enterprise').addEventListener('click',()=>{document.body.classList.toggle('bloom');notify(document.body.classList.contains('bloom')?'Enterprise display on':'Enterprise display off');});
-$('eternal').addEventListener('click',()=>{eternal=!eternal;$('eternal').textContent=eternal?'[eternal: on]':'[mfp.eternal]';notify(eternal?'Continuous random playback enabled':'Continuous random playback disabled');});
+$('eternal').addEventListener('click',()=>{eternal=!eternal;$('eternal').textContent=eternal?'[eternal: on]':'[coding.eternal]';notify(eternal?'Continuous random playback enabled':'Continuous random playback disabled');});
 $('pip').addEventListener('click',async()=>{
   if(!('documentPictureInPicture' in window)){notify('Picture-in-picture is not available in this browser.');return;}
   try{const pip=await window.documentPictureInPicture.requestWindow({width:380,height:185});
@@ -179,7 +236,7 @@ $('pip').addEventListener('click',async()=>{
 });
 const modal=$('info-modal');
 const modalData={
-  about:['About','A series of mixes intended for listening while programming to focus the brain and inspire the mind. Choose an episode on the right and press [play].'],
+  about:['About','Music for Coding is a minimalist listening space for long mixes while coding, studying, and focusing. Choose an episode and press [play].'],
   credits:['Credits','Independent interface recreation built from metadata supplied for this project. Music belongs to its respective artists and rightsholders. Recordings are streamed from external sources, not bundled with this website.'],
   folder:['Folder','Add your own licensed artwork to the project to enable a local artwork download.'],
   'own-links':['Your links','Add links for your own Patreon and podcast accounts in index.html. This independent website does not redirect visitors to another project.']

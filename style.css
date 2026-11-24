@@ -667,3 +667,112 @@ dialog p { line-height:1.6; }
    Preserving it creates 25px blank lines and clips three of the rows. */
 .terminal-wave {white-space:normal; height:4.25em;}
 .terminal-wave .wave-line {white-space:pre;}
+
+/* v6 — Music for Coding: no underline beneath the ASCII equalizer. */
+.terminal-display {
+  min-height: 6.4em;
+  max-width: 100%;
+}
+.terminal-wave {
+  display: block;
+  height: 4.35em;
+  font-size: .86em;
+  line-height: 1.08em;
+  white-space: normal;
+  overflow: hidden;
+  font-variant-ligatures: none;
+}
+.terminal-wave .wave-line {
+  display: block;
+  white-space: pre;
+  height: 1.08em;
+  overflow: hidden;
+}
+.terminal-display .now-label { height: var(--line); margin-top: .2em; }
+.terminal-display .progress-line {display:none !important;}
+@media (min-width:1024px) {
+  .terminal-display {margin-top: 1.35em; min-height:6.5em; padding-top:0;}
+}
+@media (max-width:767px) {
+  .terminal-display {margin-top:.4em; min-height:6.5em;}
+  .terminal-wave {height:4.35em;}
+}
+
+/* In the active mix: little * ' " ^ _ symbols gently bounce between names. */
+#tracklist {position:relative; isolation:isolate;}
+#tracklist a {position:relative;z-index:2;}
+#tracklist .bouncing-glyphs {
+  pointer-events:none;
+  user-select:none;
+  position:absolute;
+  inset:0;
+  z-index:3;
+  overflow:hidden;
+  opacity:0;
+  transition:opacity .2s;
+}
+body.audio-playing #tracklist .bouncing-glyphs {opacity:.82;}
+.bouncing-glyph {
+  position:absolute;
+  font-size:1em;
+  line-height:1;
+  color:var(--c-yellow);
+  text-shadow:0 0 .1em var(--c-black);
+  opacity:.65;
+  animation:ascii-bounce 2.2s ease-in-out infinite alternate;
+  will-change:transform;
+}
+.bouncing-glyph:nth-child(3n+1) {color:var(--c-purple);}
+.bouncing-glyph:nth-child(4n+2) {color:var(--c-green);}
+.bouncing-glyph:nth-child(6n+3) {color:var(--c-blue);}
+@keyframes ascii-bounce {
+  0% {transform:translate(0,6px) rotate(-4deg);opacity:.22;}
+  40% {transform:translate(3px,-5px) rotate(2deg);opacity:.76;}
+  65% {transform:translate(-2px,3px) rotate(-3deg);opacity:.55;}
+  100% {transform:translate(1px,-10px) rotate(5deg);opacity:.9;}
+}
+
+/* Falling ASCII rain on every episode change; no ring or oval. */
+#content > .episode-transition {
+  display:none !important;
+  position:absolute;
+  inset:0 0 auto;
+  height:min(700px,92vh);
+  overflow:hidden;
+  z-index:7;
+  background:transparent;
+  pointer-events:none;
+  visibility:hidden;
+  opacity:0;
+  animation:none;
+}
+#content > .episode-transition.active {
+  display:block !important;
+  visibility:visible !important;
+  opacity:1 !important;
+  animation:none !important;
+}
+.episode-transition.active::before,
+.episode-transition.active::after {content:none !important;display:none !important;}
+.ascii-raindrop {
+  display:block;
+  position:absolute;
+  line-height:1;
+  font-size:.9em;
+  opacity:0;
+  pointer-events:none;
+  animation:ascii-rainfall 1.2s linear both;
+  will-change:transform,opacity;
+}
+@keyframes ascii-rainfall {
+  0% {opacity:0;transform:translateY(-14px);}
+  14% {opacity:.65;}
+  62% {opacity:.48;}
+  100% {opacity:0;transform:translateY(var(--fall));}
+}
+.episode-switching #tracklist,
+.episode-switching #episode-links {animation:none !important;}
+@media(prefers-reduced-motion:reduce){
+  #content > .episode-transition.active{display:none !important;}
+  .bouncing-glyph{animation:none;opacity:.15;}
+}
